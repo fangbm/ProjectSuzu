@@ -154,6 +154,10 @@ cargo test -p suzu-script --features lua
 
 [docs/developer-checks.md](docs/developer-checks.md)
 
+可视化剧本编辑器开发文档见：
+
+[docs/visual-script-editor-development-plan.md](docs/visual-script-editor-development-plan.md)
+
 ## 项目结构
 
 - `crates/suzu-app`: 高层 app facade 和运行时状态。

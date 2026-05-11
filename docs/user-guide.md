@@ -65,3 +65,7 @@ Set `GameConfig.title_screen.enabled = true` to start on a title menu instead of
 - `examples/ui-save-load-demo`: title screen, save/load, settings, history, and menu flows.
 - `examples/stress-scene`: script-level stress scene for benchmark inputs.
 - `examples/web-browser-shell`: static browser canvas shell for future Wasm bundles.
+
+## Visual Script Editor
+
+The planned visual script editor is documented in `docs/visual-script-editor-development-plan.md`. It covers the editor MVP scope, native Rust desktop architecture, `.szs` import/export model, node graph design, resource picker, diagnostics, preview workflow, tests, and development milestones.
