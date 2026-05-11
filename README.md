@@ -41,6 +41,8 @@ cargo test -p suzu-script --features lua
 cargo test --workspace
 ```
 
+On Windows, the desktop example binaries use the GUI subsystem, so launching them does not open an extra console window. CLI tools keep their console output.
+
 `suzu-packer` emits a JSON asset manifest that can be registered through `AssetManager::register_manifest_file` or `SuzuApp::register_asset_manifest_file`, and can also write `.suzupack` archives with RLE compression, packed offsets, and checksum metadata. The asset manager supports synchronous texture loads, background texture loads, optional LRU texture caching, and package archive reads. `GameConfig` and `UserSettings` can be read from or written to JSON files for project and user preference persistence.
 Script compile errors include line/column diagnostics, and unknown commands suggest the closest built-in command when possible. Scripts may declare `@script version=1`; the compiler validates the format version and exposes a migration entry point for future DSL upgrades.
 User-facing documentation lives in `docs/user-guide.md`, `docs/scripting-reference.md`, `docs/release-packaging.md`, `docs/developer-checks.md`, and `docs/release-checklist.md`. Contribution and security notes live in `CONTRIBUTING.md` and `SECURITY.md`. Project changes are summarized in `CHANGELOG.md`; licensing is `MIT OR Apache-2.0`.

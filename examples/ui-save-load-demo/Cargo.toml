@@ -10,3 +10,4 @@ anyhow.workspace = true
 suzu-app.workspace = true
 suzu-save.workspace = true
 suzu-platform.workspace = true
+windows-sys.workspace = true

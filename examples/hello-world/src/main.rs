@@ -1,8 +1,18 @@
+#![cfg_attr(windows, windows_subsystem = "windows")]
+
+mod error_dialog;
+
 use anyhow::Result;
 use suzu_app::{GameConfig, SuzuApp};
 use suzu_platform::{run_desktop, FrameTexture, WindowConfig};
 
-fn main() -> Result<()> {
+fn main() {
+    if let Err(error) = run() {
+        error_dialog::report_startup_error(&error);
+    }
+}
+
+fn run() -> Result<()> {
     let mut app = SuzuApp::new(GameConfig::default());
     app.register_textures_from_dir("examples/hello-world/assets")?;
     app.load_script(include_str!("../script/main.szs"))?;
