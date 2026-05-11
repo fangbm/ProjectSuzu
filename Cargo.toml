@@ -1,0 +1,44 @@
+[workspace]
+members = [
+    "crates/suzu-core",
+    "crates/suzu-script",
+    "crates/suzu-render",
+    "crates/suzu-text",
+    "crates/suzu-audio",
+    "crates/suzu-asset",
+    "crates/suzu-save",
+    "crates/suzu-input",
+    "crates/suzu-platform",
+    "crates/suzu-app",
+    "examples/hello-world",
+    "examples/branching-story",
+    "examples/ui-save-load-demo",
+    "tools/suzu-packer",
+    "tools/suzu-compiler",
+    "tools/suzu-bench",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+repository = "https://example.invalid/project-suzu"
+rust-version = "1.78"
+
+[workspace.dependencies]
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
+tracing = "0.1"
+mlua = { version = "0.10", features = ["lua54", "vendored"] }
+suzu-core = { path = "crates/suzu-core" }
+suzu-script = { path = "crates/suzu-script" }
+suzu-render = { path = "crates/suzu-render" }
+suzu-text = { path = "crates/suzu-text" }
+suzu-audio = { path = "crates/suzu-audio" }
+suzu-asset = { path = "crates/suzu-asset" }
+suzu-save = { path = "crates/suzu-save" }
+suzu-input = { path = "crates/suzu-input" }
+suzu-platform = { path = "crates/suzu-platform" }
+suzu-app = { path = "crates/suzu-app" }

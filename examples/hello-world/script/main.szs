@@ -1,0 +1,30 @@
+; Project Suzu minimal script
+@bg file="bg_school_evening" time=800 method=crossfade
+@playbgm file="bgm_school" loop=true fadein=2000
+@bg file="bg_rooftop_evening" time=800 method=crossfade
+@char name="eileen" face="happy" x=460 y=0 width=360 height=720 flip=false layer=10
+@anim target="eileen" type=move_to x=500 y=40 duration=900
+@set name=affection_eileen value=52
+@fx type=flash color=#FFFFFF duration=250
+@wait time=250
+@showmsg
+@voice file="voice_eileen_001"
+# 艾琳
+你好，Project Suzu。[l][r]
+@choice "去教室" goto=label_classroom
+@choice "去天台" goto=label_rooftop cond=affection_eileen>=50
+
+*label_classroom
+# 艾琳
+那我们去教室吧。[l][r]
+@jump goto=label_end
+
+*label_rooftop
+@fx type=quake intensity=8 duration=500
+# 艾琳
+天台的风应该很舒服。[l][r]
+
+*label_end
+@anim target="eileen" type=fade opacity=0 duration=500
+@wait time=500
+@hidechar name="eileen"

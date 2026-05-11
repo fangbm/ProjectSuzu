@@ -1,0 +1,90 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact: project-suzu-linux-x64
+            exe: ""
+          - os: windows-latest
+            artifact: project-suzu-windows-x64
+            exe: ".exe"
+          - os: macos-latest
+            artifact: project-suzu-macos-x64
+            exe: ""
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build release binaries
+        run: cargo build --workspace --release
+
+      - name: Collect artifacts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          New-Item -ItemType Directory -Force dist/assets | Out-Null
+          New-Item -ItemType Directory -Force dist/assets/branding | Out-Null
+          New-Item -ItemType Directory -Force dist/docs | Out-Null
+          Copy-Item "target/release/suzu-compiler${{ matrix.exe }}" "dist/suzu-compiler${{ matrix.exe }}"
+          Copy-Item "target/release/suzu-packer${{ matrix.exe }}" "dist/suzu-packer${{ matrix.exe }}"
+          Copy-Item "target/release/suzu-bench${{ matrix.exe }}" "dist/suzu-bench${{ matrix.exe }}"
+          Copy-Item "target/release/suzu-hello-world${{ matrix.exe }}" "dist/suzu-hello-world${{ matrix.exe }}"
+          Copy-Item "target/release/suzu-branching-story${{ matrix.exe }}" "dist/suzu-branching-story${{ matrix.exe }}"
+          Copy-Item "target/release/suzu-ui-save-load-demo${{ matrix.exe }}" "dist/suzu-ui-save-load-demo${{ matrix.exe }}"
+          Copy-Item README.md dist/README.md
+          Copy-Item CONTRIBUTING.md dist/CONTRIBUTING.md
+          Copy-Item SECURITY.md dist/SECURITY.md
+          Copy-Item LICENSE-MIT dist/LICENSE-MIT
+          Copy-Item LICENSE-APACHE dist/LICENSE-APACHE
+          Copy-Item CHANGELOG.md dist/CHANGELOG.md
+          Copy-Item assets/branding/Suzu_icon.png dist/assets/branding/Suzu_icon.png
+          Copy-Item docs/implementation-checklist.md dist/docs/implementation-checklist.md
+          Copy-Item docs/user-guide.md dist/docs/user-guide.md
+          Copy-Item docs/scripting-reference.md dist/docs/scripting-reference.md
+          Copy-Item docs/release-packaging.md dist/docs/release-packaging.md
+          Copy-Item docs/developer-checks.md dist/docs/developer-checks.md
+          Copy-Item docs/release-checklist.md dist/docs/release-checklist.md
+          & "target/release/suzu-packer${{ matrix.exe }}" examples/hello-world --pack dist/assets/hello-world.suzupack
+          & "target/release/suzu-packer${{ matrix.exe }}" examples/hello-world --output dist/assets/hello-world-assets.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist
+
+  publish:
+    name: Publish GitHub Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Archive artifacts
+        run: |
+          cd artifacts
+          for dir in *; do
+            tar -czf "$dir.tar.gz" "$dir"
+          done
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*.tar.gz

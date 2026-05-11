@@ -1,0 +1,18 @@
+@script version=1
+@bg file="bg_school_evening"
+@char name="eileen" pos=center
+@set name=affection_eileen value=52
+# 艾琳
+放学后的走廊安静得能听见钟摆。
+@choice "去教室" goto=classroom
+@choice "去天台" goto=roof cond=affection_eileen>=50
+*classroom
+# 艾琳
+教室里还亮着灯，我们从这里开始调查。
+@jump goto=end
+*roof
+# 艾琳
+天台的风很冷，但她像是早就知道答案。
+*end
+# 旁白
+分支演示结束。

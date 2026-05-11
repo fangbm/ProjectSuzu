@@ -1,0 +1,6 @@
+/target/
+/dist/
+/.codex/
+*.pdb
+*.log
+.DS_Store

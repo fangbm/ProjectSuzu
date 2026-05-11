@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Project Suzu Web Shell</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: #111;
+        color: #f6f3ed;
+        font-family: system-ui, sans-serif;
+      }
+
+      #suzu-canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+        background: #181818;
+      }
+
+      #status {
+        position: fixed;
+        left: 16px;
+        bottom: 16px;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="suzu-canvas"></canvas>
+    <div id="status">Loading Project Suzu...</div>
+    <script type="module" src="./bootstrap.js"></script>
+  </body>
+</html>

@@ -1,0 +1,15 @@
+@script version=1
+@bg file="stress/bg.png" method=crossfade time=250
+# Narrator
+Stress scene boot.
+@char name=c0 face=neutral x=80 y=40 layer=0
+@char name=c1 face=neutral x=160 y=80 layer=1
+@char name=c2 face=neutral x=240 y=120 layer=2
+@char name=c3 face=neutral x=320 y=160 layer=3
+@char name=c4 face=neutral x=400 y=200 layer=4
+@char name=c5 face=neutral x=480 y=240 layer=5
+@char name=c6 face=neutral x=560 y=280 layer=6
+@char name=c7 face=neutral x=640 y=320 layer=7
+@fx kind=quake intensity=4 time=300
+# Narrator
+Stress scene ready.[l]Continue measuring.

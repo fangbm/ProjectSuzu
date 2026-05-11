@@ -1,0 +1,10 @@
+@script version=1
+@bg file="bg_menu_room"
+@savename text="UI Demo"
+# 旁白
+按取消键打开系统菜单。
+@voice file="voices/demo_line.ogg"
+# 旁白
+历史界面可以回放带 voice 标记的对白。
+# 旁白
+保存槽 0 已在启动时写入一张缩略图。

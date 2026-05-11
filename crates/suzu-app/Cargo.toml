@@ -1,0 +1,23 @@
+[package]
+name = "suzu-app"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+suzu-core.workspace = true
+suzu-asset.workspace = true
+suzu-audio.workspace = true
+suzu-input.workspace = true
+suzu-platform.workspace = true
+suzu-render.workspace = true
+suzu-save.workspace = true
+suzu-script.workspace = true
+suzu-text.workspace = true
+
+[dev-dependencies]
+image = { version = "=0.25.6", default-features = false, features = ["png"] }
