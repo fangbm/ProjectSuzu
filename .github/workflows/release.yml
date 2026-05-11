@@ -75,9 +75,34 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
+
+      - name: Generate release notes
+        run: |
+          current_tag="${GITHUB_REF_NAME}"
+          previous_tag="$(git tag --sort=-v:refname | grep -v "^${current_tag}$" | head -n 1 || true)"
+
+          {
+            echo "## Changes"
+            echo
+            if [ -n "$previous_tag" ]; then
+              echo "Changes from \`$previous_tag\` to \`$current_tag\`:"
+              echo
+              echo "https://github.com/${GITHUB_REPOSITORY}/compare/${previous_tag}...${current_tag}"
+              echo
+              git log --oneline --no-decorate "${previous_tag}..${current_tag}" | sed 's/^/- /'
+            else
+              echo "Initial release for \`$current_tag\`."
+              echo
+              git log --oneline --no-decorate | sed 's/^/- /'
+            fi
+          } > RELEASE_NOTES.md
 
       - name: Archive artifacts
         run: |
@@ -89,4 +114,5 @@ jobs:
 
       - uses: softprops/action-gh-release@v2
         with:
+          body_path: RELEASE_NOTES.md
           files: artifacts/*.tar.gz
