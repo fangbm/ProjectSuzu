@@ -42,6 +42,7 @@ jobs:
           Copy-Item "target/release/suzu-compiler${{ matrix.exe }}" "dist/suzu-compiler${{ matrix.exe }}"
           Copy-Item "target/release/suzu-packer${{ matrix.exe }}" "dist/suzu-packer${{ matrix.exe }}"
           Copy-Item "target/release/suzu-bench${{ matrix.exe }}" "dist/suzu-bench${{ matrix.exe }}"
+          Copy-Item "target/release/suzu-editor${{ matrix.exe }}" "dist/suzu-editor${{ matrix.exe }}"
           Copy-Item "target/release/suzu-hello-world${{ matrix.exe }}" "dist/suzu-hello-world${{ matrix.exe }}"
           Copy-Item "target/release/suzu-branching-story${{ matrix.exe }}" "dist/suzu-branching-story${{ matrix.exe }}"
           Copy-Item "target/release/suzu-ui-save-load-demo${{ matrix.exe }}" "dist/suzu-ui-save-load-demo${{ matrix.exe }}"
@@ -56,6 +57,7 @@ jobs:
           Copy-Item docs/implementation-checklist.md dist/docs/implementation-checklist.md
           Copy-Item docs/user-guide.md dist/docs/user-guide.md
           Copy-Item docs/scripting-reference.md dist/docs/scripting-reference.md
+          Copy-Item docs/visual-script-editor-development-plan.md dist/docs/visual-script-editor-development-plan.md
           Copy-Item docs/release-packaging.md dist/docs/release-packaging.md
           Copy-Item docs/developer-checks.md dist/docs/developer-checks.md
           Copy-Item docs/release-checklist.md dist/docs/release-checklist.md
