@@ -34,7 +34,7 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-The workflow uploads per-platform archives containing tools, benchmark CLI, examples, packed hello-world assets, README, and core/developer documentation.
+The workflow uploads per-platform archives containing tools, benchmark CLI, examples, packed hello-world assets, README, and core/developer documentation. Release asset filenames include the tag, for example `project-suzu-v0.1.2-windows-x64.tar.gz`.
 
 Use `docs/release-checklist.md` as the final pre-tag checklist.
 

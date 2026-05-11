@@ -83,7 +83,8 @@ jobs:
         run: |
           cd artifacts
           for dir in *; do
-            tar -czf "$dir.tar.gz" "$dir"
+            archive_name="${dir/project-suzu-/project-suzu-${GITHUB_REF_NAME}-}.tar.gz"
+            tar -czf "$archive_name" "$dir"
           done
 
       - uses: softprops/action-gh-release@v2
