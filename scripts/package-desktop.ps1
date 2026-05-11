@@ -16,6 +16,7 @@ $docFiles = @(
     "docs/implementation-checklist.md",
     "docs/user-guide.md",
     "docs/scripting-reference.md",
+    "docs/visual-script-editor-development-plan.md",
     "docs/release-packaging.md",
     "docs/developer-checks.md",
     "docs/release-checklist.md"
@@ -24,6 +25,7 @@ $binaries = @(
     "suzu-compiler",
     "suzu-packer",
     "suzu-bench",
+    "suzu-editor",
     "suzu-hello-world",
     "suzu-branching-story",
     "suzu-ui-save-load-demo"

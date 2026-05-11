@@ -76,6 +76,19 @@ This checklist tracks the work completed to turn Project Suzu into a complete fi
 - [x] Complete user documentation for getting started, scripting, and release packaging.
 - [x] Three examples: minimal hello-world, branching story, and full UI/save/load demo.
 
+## Phase 6 - Visual Script Editor
+
+- [x] Editor development plan covering MVP scope, architecture, document model, UI, diagnostics, preview, tests, and milestones.
+- [x] `suzu-editor-core` crate with editor document model, `.szs` import/export, graph diagnostics, project scan, and undo command primitives.
+- [x] Initial `suzu-editor` desktop binary with project scan, script open, visual node list, basic node inspector, export/save, and diagnostics panel.
+- [x] Release packaging includes `suzu-editor` and editor planning documentation.
+- [ ] Rich node forms for all built-in commands.
+- [ ] Branch graph visualization with editable edges.
+- [ ] Asset picker previews for images and audio.
+- [ ] Embedded or companion runtime preview from selected node.
+- [ ] Editor sidecar `.editor.json` layout persistence.
+- [ ] Golden file fixtures for import/export equivalence.
+
 ## Current Verification Gate
 
 Run these after each completed slice:

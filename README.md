@@ -32,6 +32,7 @@ Desktop examples now start on a built-in title screen. The runtime title menu su
 cargo run -p suzu-hello-world
 cargo run -p suzu-branching-story
 cargo run -p suzu-ui-save-load-demo
+cargo run -p suzu-editor
 start examples\web-browser-shell\index.html
 cargo run -p suzu-bench -- 1000
 cargo run -p suzu-compiler -- examples\hello-world\script\main.szs
@@ -47,4 +48,4 @@ On Windows, the desktop example binaries use the GUI subsystem, so launching the
 
 `suzu-packer` emits a JSON asset manifest that can be registered through `AssetManager::register_manifest_file` or `SuzuApp::register_asset_manifest_file`, and can also write `.suzupack` archives with RLE compression, packed offsets, and checksum metadata. The asset manager supports synchronous texture loads, background texture loads, optional LRU texture caching, and package archive reads. `GameConfig` and `UserSettings` can be read from or written to JSON files for project and user preference persistence.
 Script compile errors include line/column diagnostics, and unknown commands suggest the closest built-in command when possible. Scripts may declare `@script version=1`; the compiler validates the format version and exposes a migration entry point for future DSL upgrades.
-User-facing documentation lives in `docs/user-guide.md`, `docs/scripting-reference.md`, `docs/release-packaging.md`, `docs/developer-checks.md`, and `docs/release-checklist.md`. The visual script editor plan is tracked in `docs/visual-script-editor-development-plan.md`. Contribution and security notes live in `CONTRIBUTING.md` and `SECURITY.md`. Project changes are summarized in `CHANGELOG.md`; licensing is `MIT OR Apache-2.0`.
+User-facing documentation lives in `docs/user-guide.md`, `docs/scripting-reference.md`, `docs/release-packaging.md`, `docs/developer-checks.md`, and `docs/release-checklist.md`. The visual script editor plan is tracked in `docs/visual-script-editor-development-plan.md`, and the first editor MVP can be launched with `cargo run -p suzu-editor`. Contribution and security notes live in `CONTRIBUTING.md` and `SECURITY.md`. Project changes are summarized in `CHANGELOG.md`; licensing is `MIT OR Apache-2.0`.

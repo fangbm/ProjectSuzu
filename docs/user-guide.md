@@ -32,6 +32,12 @@ cargo test -p suzu-script --features lua
 .\scripts\package-desktop.ps1 -Check
 ```
 
+Launch the first visual script editor MVP:
+
+```powershell
+cargo run -p suzu-editor
+```
+
 ## Project Layout
 
 - `crates/suzu-app`: high-level visual novel app facade.
@@ -43,6 +49,7 @@ cargo test -p suzu-script --features lua
 - `crates/suzu-asset`: texture discovery, async loading, LRU cache, manifests, and `.suzupack` archive reads.
 - `crates/suzu-input`: keyboard, mouse, wheel, and selection trigger maps.
 - `crates/suzu-platform`: desktop `winit`/`wgpu` integration and platform configuration types.
+- `crates/suzu-editor-core`: visual script editor document model, import/export, graph diagnostics, project scan, and undo commands.
 
 ## Runtime Flow
 
@@ -69,3 +76,5 @@ Set `GameConfig.title_screen.enabled = true` to start on a title menu instead of
 ## Visual Script Editor
 
 The planned visual script editor is documented in `docs/visual-script-editor-development-plan.md`. It covers the editor MVP scope, native Rust desktop architecture, `.szs` import/export model, node graph design, resource picker, diagnostics, preview workflow, tests, and development milestones.
+
+The initial editor binary is available as `suzu-editor`. It can scan a Project Suzu folder, open `.szs` files, show imported visual nodes, edit common node fields, export back to `.szs`, and run graph/compile diagnostics.

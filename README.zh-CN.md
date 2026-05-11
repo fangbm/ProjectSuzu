@@ -53,10 +53,12 @@ cargo run -p suzu-hello-world
 ```powershell
 cargo run -p suzu-branching-story
 cargo run -p suzu-ui-save-load-demo
+cargo run -p suzu-editor
 start examples\web-browser-shell\index.html
 ```
 
 桌面示例默认启用标题界面。框架层可通过 `GameConfig.title_screen.enabled = true` 打开标题入口，并通过 `TitleScreenConfig` 设置标题和副标题；如果保持默认值，`SuzuApp` 会像普通运行时一样直接进入脚本，方便嵌入到自定义启动流程中。
+可视化剧本编辑器可以通过 `cargo run -p suzu-editor` 启动；当前 MVP 支持扫描工程、打开 `.szs`、编辑常见节点、导出保存和刷新诊断。
 
 性能 smoke test：
 
@@ -170,6 +172,7 @@ cargo test -p suzu-script --features lua
 - `crates/suzu-input`: 键盘、鼠标、滚轮、触摸输入映射。
 - `crates/suzu-platform`: 桌面平台、移动/Web 目标描述。
 - `tools/`: 编译器、资源打包器、benchmark CLI。
+- `tools/suzu-editor`: 可视化剧本编辑器桌面入口。
 - `examples/`: 示例工程、压力脚本和 Web 壳。
 - `docs/`: 用户、脚本、发布、开发文档。
 
