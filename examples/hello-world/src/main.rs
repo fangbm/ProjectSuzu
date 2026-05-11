@@ -3,7 +3,7 @@
 mod error_dialog;
 
 use anyhow::Result;
-use suzu_app::{GameConfig, SuzuApp};
+use suzu_app::{GameConfig, SuzuApp, TitleScreenConfig};
 use suzu_platform::{run_desktop, FrameTexture, WindowConfig};
 
 fn main() {
@@ -13,15 +13,25 @@ fn main() {
 }
 
 fn run() -> Result<()> {
-    let mut app = SuzuApp::new(GameConfig::default());
+    let mut app = SuzuApp::new(example_config());
     app.register_textures_from_dir("examples/hello-world/assets")?;
     app.load_script(include_str!("../script/main.szs"))?;
-    app.advance_until_waiting();
     if app.scene_textures.is_empty() {
         register_fallback_textures(&mut app);
     }
 
     run_desktop(WindowConfig::default(), app)
+}
+
+fn example_config() -> GameConfig {
+    GameConfig {
+        title_screen: TitleScreenConfig {
+            enabled: true,
+            title: "Project Suzu".to_owned(),
+            subtitle: "Hello World".to_owned(),
+        },
+        ..GameConfig::default()
+    }
 }
 
 fn register_fallback_textures(app: &mut SuzuApp) {

@@ -24,6 +24,8 @@ Input supports serializable trigger maps for keyboard and mouse bindings, with a
 
 The desktop path creates a `winit` window, initializes a `wgpu` surface, uploads RGBA textures, renders sprite quads with tint, opacity, scale, rotation, horizontal flip, and blend modes, and rasterizes dialogue/choice text into GPU textures. Script files can be parsed and compiled into VM commands, and the app facade can advance scene/audio commands, BGM/voice playback commands, queued dialogue voice sync, timestamp-driven voice reveal plans, character show/update/hide commands with named or custom positions, sizes, and horizontal flips, message-box visibility commands, timed waits, subroutine calls, time-based move/zoom/fade tween animations, background crossfades, flash/quake visual effects, dialogue reveal timing, confirm input, auto mode, read-dialogue skip mode, backlog/history overlay with voice replay hooks, system menu actions, variable-gated choice branches with keyboard or wheel selection, and serializable game-state snapshots with optional RGBA thumbnails for autosave/slot save flows.
 
+Desktop examples now start on a built-in title screen. The runtime title menu supports Start, Continue, Load, Settings, and Quit, and projects can enable it with `GameConfig.title_screen.enabled = true`.
+
 ## Commands
 
 ```powershell

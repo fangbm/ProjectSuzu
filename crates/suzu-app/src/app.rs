@@ -33,6 +33,35 @@ const SYSTEM_MENU_ACTIONS: [SystemMenuAction; 6] = [
     SystemMenuAction::Quit,
 ];
 
+const TITLE_MENU_ACTIONS: [TitleMenuAction; 5] = [
+    TitleMenuAction::Start,
+    TitleMenuAction::Continue,
+    TitleMenuAction::Load,
+    TitleMenuAction::Settings,
+    TitleMenuAction::Quit,
+];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TitleMenuAction {
+    Start,
+    Continue,
+    Load,
+    Settings,
+    Quit,
+}
+
+impl TitleMenuAction {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Start => "Start",
+            Self::Continue => "Continue",
+            Self::Load => "Load",
+            Self::Settings => "Settings",
+            Self::Quit => "Quit",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SystemMenuAction {
     Settings,
@@ -82,6 +111,8 @@ pub struct SuzuApp {
     read_dialogue_keys: HashSet<String>,
     history_visible: bool,
     history_scroll: usize,
+    title_screen_visible: bool,
+    title_menu_selected: usize,
     system_menu_visible: bool,
     system_menu_selected: usize,
     quit_requested: bool,
@@ -89,6 +120,7 @@ pub struct SuzuApp {
 
 impl SuzuApp {
     pub fn new(config: GameConfig) -> Self {
+        let title_screen_visible = config.title_screen.enabled;
         Self {
             config,
             scene: Scene::default(),
@@ -115,6 +147,8 @@ impl SuzuApp {
             read_dialogue_keys: HashSet::new(),
             history_visible: false,
             history_scroll: 0,
+            title_screen_visible,
+            title_menu_selected: 0,
             system_menu_visible: false,
             system_menu_selected: 0,
             quit_requested: false,
@@ -123,6 +157,10 @@ impl SuzuApp {
 
     pub fn tick(&mut self, delta_ms: u32) {
         self.process_input();
+        if self.title_screen_visible {
+            let _stats = self.renderer.begin_frame(3);
+            return;
+        }
         self.audio.advance(delta_ms);
         self.advance_animations(delta_ms);
         self.advance_effects(delta_ms);
@@ -141,6 +179,10 @@ impl SuzuApp {
 
     pub fn load_script(&mut self, source: &str) -> Result<(), suzu_script::CompileError> {
         self.script = CommandQueue::new(compile_script(source)?);
+        if self.config.title_screen.enabled {
+            self.title_screen_visible = true;
+            self.title_menu_selected = 0;
+        }
         Ok(())
     }
 
@@ -468,6 +510,8 @@ impl SuzuApp {
             .map(|dialogue| restored_dialogue_key(&self.config.script_entry, dialogue));
         self.history_visible = false;
         self.history_scroll = 0;
+        self.title_screen_visible = false;
+        self.title_menu_selected = 0;
         self.system_menu_visible = false;
         self.system_menu_selected = 0;
         self.auto_advance_elapsed_ms = 0;
@@ -488,6 +532,86 @@ impl SuzuApp {
         };
         self.restore_state(state);
         true
+    }
+
+    pub fn show_title_screen(&mut self) {
+        self.reset_runtime_to_script_start();
+        self.title_screen_visible = true;
+    }
+
+    pub fn title_screen_visible(&self) -> bool {
+        self.title_screen_visible
+    }
+
+    pub fn selected_title_menu_action(&self) -> TitleMenuAction {
+        TITLE_MENU_ACTIONS[self.title_menu_selected]
+    }
+
+    pub fn move_title_menu_selection(&mut self, delta: i32) {
+        self.title_menu_selected =
+            wrapped_index(self.title_menu_selected, TITLE_MENU_ACTIONS.len(), delta);
+    }
+
+    pub fn start_game(&mut self) {
+        self.reset_runtime_to_script_start();
+        self.title_screen_visible = false;
+        self.advance_until_waiting();
+    }
+
+    pub fn activate_title_menu_selection(&mut self) -> TitleMenuAction {
+        let action = self.selected_title_menu_action();
+        self.activate_title_menu_action(action);
+        action
+    }
+
+    pub fn activate_title_menu_action(&mut self, action: TitleMenuAction) {
+        match action {
+            TitleMenuAction::Start => self.start_game(),
+            TitleMenuAction::Continue => {
+                if let Some(state) = self
+                    .saves
+                    .autosave()
+                    .cloned()
+                    .or_else(|| self.saves.load_slot(0).cloned())
+                {
+                    self.restore_state(state);
+                } else {
+                    self.start_game();
+                }
+            }
+            TitleMenuAction::Load => {
+                let _ = self.load_slot(0);
+            }
+            TitleMenuAction::Settings => {}
+            TitleMenuAction::Quit => {
+                self.quit_requested = true;
+                self.title_screen_visible = false;
+            }
+        }
+    }
+
+    fn reset_runtime_to_script_start(&mut self) {
+        self.scene = Scene::default();
+        self.audio = AudioSystem::default();
+        self.script.set_position(0);
+        self.script.set_call_stack(Vec::new());
+        self.variables.clear();
+        self.history.clear();
+        self.save_title.clear();
+        self.active_animations.clear();
+        self.active_effects.clear();
+        self.background_transition = None;
+        self.wait_timer_ms = None;
+        self.pending_voice = None;
+        self.auto_mode = false;
+        self.auto_advance_elapsed_ms = 0;
+        self.skip_mode = false;
+        self.current_dialogue_key = None;
+        self.history_visible = false;
+        self.history_scroll = 0;
+        self.system_menu_visible = false;
+        self.system_menu_selected = 0;
+        self.title_menu_selected = 0;
     }
 
     pub fn open_history(&mut self) {
@@ -597,11 +721,12 @@ impl SuzuApp {
                 self.open_history();
             }
             SystemMenuAction::ReturnTitle => {
-                self.scene = Scene::default();
-                self.script.set_position(0);
-                self.history.clear();
-                self.variables.clear();
                 self.close_system_menu();
+                if self.config.title_screen.enabled {
+                    self.show_title_screen();
+                } else {
+                    self.start_game();
+                }
             }
             SystemMenuAction::Quit => {
                 self.quit_requested = true;
@@ -773,6 +898,25 @@ impl SuzuApp {
     fn process_input(&mut self) {
         let events = self.input.drain().collect::<Vec<_>>();
         for event in events {
+            if self.title_screen_visible {
+                match event {
+                    InputEvent::Cancel => self.activate_title_menu_action(TitleMenuAction::Quit),
+                    InputEvent::Confirm
+                    | InputEvent::PointerDown { .. }
+                    | InputEvent::TouchStart { .. } => {
+                        self.activate_title_menu_selection();
+                    }
+                    InputEvent::Scroll { delta } => {
+                        self.move_title_menu_selection(if delta < 0.0 { 1 } else { -1 });
+                    }
+                    InputEvent::MoveSelection { delta } => self.move_title_menu_selection(delta),
+                    InputEvent::PointerUp { .. }
+                    | InputEvent::TouchMove { .. }
+                    | InputEvent::TouchEnd { .. } => {}
+                }
+                continue;
+            }
+
             if self.system_menu_visible {
                 match event {
                     InputEvent::Cancel => self.close_system_menu(),
@@ -1175,6 +1319,14 @@ impl DesktopApp for SuzuApp {
 
     fn update(&mut self, delta_ms: u32) -> DesktopFrame {
         self.tick(delta_ms);
+        if self.title_screen_visible {
+            return title_frame(
+                &self.config.title_screen.title,
+                &self.config.title_screen.subtitle,
+                self.title_menu_selected,
+                &self.scene_textures,
+            );
+        }
 
         let quake_offset = self.quake_offset();
         let mut sprites = Vec::new();
@@ -1565,6 +1717,90 @@ fn character_position(position: Position) -> Vec2 {
         Position::Center => Vec2::new(460.0, 0.0),
         Position::Right => Vec2::new(740.0, 0.0),
         Position::Custom(value) => value,
+    }
+}
+
+fn title_frame(
+    title: &str,
+    subtitle: &str,
+    selected: usize,
+    textures: &[FrameTexture],
+) -> DesktopFrame {
+    let mut sprites = vec![
+        FrameSprite::solid(
+            "title_background",
+            Rect::new(0.0, 0.0, 1280.0, 720.0),
+            Color::rgba(0.035, 0.04, 0.055, 1.0),
+            0,
+        ),
+        FrameSprite::solid(
+            "title_panel",
+            Rect::new(720.0, 126.0, 368.0, 424.0),
+            Color::rgba(0.02, 0.024, 0.034, 0.92),
+            10,
+        ),
+        FrameSprite::solid(
+            "title_accent",
+            Rect::new(96.0, 560.0, 472.0, 4.0),
+            Color::rgba(0.74, 0.34, 0.28, 1.0),
+            11,
+        ),
+        FrameSprite::solid(
+            "title_menu_selection",
+            Rect::new(752.0, 252.0 + selected as f32 * 58.0, 304.0, 42.0),
+            Color::rgba(0.18, 0.24, 0.34, 0.95),
+            12,
+        ),
+    ];
+
+    sprites.push(FrameSprite::solid(
+        "title_glow",
+        Rect::new(72.0, 80.0, 560.0, 400.0),
+        Color::rgba(0.11, 0.13, 0.18, 0.72),
+        1,
+    ));
+
+    let mut texts = vec![
+        FrameText::new(
+            title.to_owned(),
+            Rect::new(96.0, 164.0, 560.0, 80.0),
+            Color::rgba(0.96, 0.9, 0.78, 1.0),
+            100,
+        ),
+        FrameText::new(
+            subtitle.to_owned(),
+            Rect::new(100.0, 252.0, 500.0, 36.0),
+            Color::rgba(0.76, 0.8, 0.88, 1.0),
+            101,
+        ),
+        FrameText::new(
+            "Title".to_owned(),
+            Rect::new(752.0, 158.0, 304.0, 42.0),
+            Color::rgba(0.88, 0.9, 0.96, 1.0),
+            102,
+        ),
+    ];
+
+    for (index, action) in TITLE_MENU_ACTIONS.iter().enumerate() {
+        let marker = if index == selected { "> " } else { "  " };
+        let color = if index == selected {
+            Color::WHITE
+        } else {
+            Color::rgba(0.76, 0.8, 0.88, 1.0)
+        };
+        texts.push(FrameText::new(
+            format!("{marker}{}", action.label()),
+            Rect::new(776.0, 260.0 + index as f32 * 58.0, 256.0, 30.0),
+            color,
+            110 + index as i32,
+        ));
+    }
+
+    DesktopFrame {
+        clear_color: Color::rgba(0.035, 0.04, 0.055, 1.0),
+        textures: textures.to_vec(),
+        sprites,
+        texts,
     }
 }
 
@@ -2646,6 +2882,55 @@ mod tests {
     }
 
     #[test]
+    fn title_screen_waits_until_start_is_selected() {
+        let mut app = SuzuApp::new(title_config());
+        app.load_script("# N\nFirst").unwrap();
+
+        app.tick(0);
+        assert!(app.title_screen_visible());
+        assert!(app.scene.dialogue.is_none());
+
+        app.handle_input_event(InputEvent::Confirm);
+        app.tick(0);
+
+        assert!(!app.title_screen_visible());
+        assert_eq!(app.scene.dialogue.as_ref().unwrap().raw, "N: First");
+    }
+
+    #[test]
+    fn title_menu_selection_wraps_and_quit_sets_request_flag() {
+        let mut app = SuzuApp::new(title_config());
+        app.load_script("# N\nFirst").unwrap();
+
+        app.handle_input_event(InputEvent::MoveSelection { delta: -1 });
+        app.tick(0);
+        assert_eq!(app.selected_title_menu_action(), TitleMenuAction::Quit);
+
+        app.handle_input_event(InputEvent::Confirm);
+        app.tick(0);
+
+        assert!(app.quit_requested());
+        assert!(!app.title_screen_visible());
+    }
+
+    #[test]
+    fn return_title_resets_runtime_and_shows_title_screen() {
+        let mut app = SuzuApp::new(title_config());
+        app.load_script("# N\nFirst\n# N\nSecond").unwrap();
+        app.start_game();
+        app.reveal_dialogue_now();
+        app.confirm();
+
+        assert_eq!(app.scene.dialogue.as_ref().unwrap().raw, "N: Second");
+
+        app.activate_system_menu_action(SystemMenuAction::ReturnTitle);
+
+        assert!(app.title_screen_visible());
+        assert!(app.scene.dialogue.is_none());
+        assert!(app.history.is_empty());
+    }
+
+    #[test]
     fn dialogue_control_tags_are_not_displayed() {
         let mut app = SuzuApp::new(GameConfig::default());
         app.load_script("# 艾琳\n你好[l][r]下一行").unwrap();
@@ -2892,5 +3177,16 @@ mod tests {
 
         app.confirm();
         assert_eq!(app.scene.dialogue.as_ref().unwrap().raw, "艾琳: 第二句");
+    }
+
+    fn title_config() -> GameConfig {
+        GameConfig {
+            title_screen: crate::config::TitleScreenConfig {
+                enabled: true,
+                title: "Title".to_owned(),
+                subtitle: "Subtitle".to_owned(),
+            },
+            ..GameConfig::default()
+        }
     }
 }

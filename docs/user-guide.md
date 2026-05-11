@@ -49,14 +49,19 @@ cargo test -p suzu-script --features lua
 1. Parse `.szs` source into a `ScriptDocument`.
 2. Compile the document into VM commands.
 3. Feed commands into `SuzuApp`.
-4. Advance the app with frame deltas and input events.
-5. Render the app scene using the platform renderer.
-6. Capture saves through the save manager.
+4. Optionally show the title screen when `GameConfig.title_screen.enabled` is true.
+5. Advance the app with frame deltas and input events.
+6. Render the app scene using the platform renderer.
+7. Capture saves through the save manager.
+
+## Title Screen
+
+Set `GameConfig.title_screen.enabled = true` to start on a title menu instead of immediately advancing the script. The built-in title menu supports Start, Continue, Load, Settings, and Quit. Start resets the runtime and advances the script to the first waiting point; Continue restores the autosave or slot 0 when available; Load restores slot 0; Return Title in the system menu resets the runtime and shows the title screen again.
 
 ## Examples
 
-- `examples/hello-world`: minimal script and asset packing flow.
-- `examples/branching-story`: choices, labels, and conditional variables.
-- `examples/ui-save-load-demo`: save/load, settings, history, and menu flows.
+- `examples/hello-world`: minimal script, title screen, and asset packing flow.
+- `examples/branching-story`: title screen, choices, labels, and conditional variables.
+- `examples/ui-save-load-demo`: title screen, save/load, settings, history, and menu flows.
 - `examples/stress-scene`: script-level stress scene for benchmark inputs.
 - `examples/web-browser-shell`: static browser canvas shell for future Wasm bundles.

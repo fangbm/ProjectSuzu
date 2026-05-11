@@ -3,7 +3,7 @@
 mod error_dialog;
 
 use anyhow::Result;
-use suzu_app::{GameConfig, SuzuApp};
+use suzu_app::{GameConfig, SuzuApp, TitleScreenConfig};
 use suzu_platform::{run_desktop, FrameTexture, WindowConfig};
 use suzu_save::SaveThumbnail;
 
@@ -14,13 +14,25 @@ fn main() {
 }
 
 fn run() -> Result<()> {
-    let mut app = SuzuApp::new(GameConfig::default());
+    let mut app = SuzuApp::new(example_config());
     app.load_script(include_str!("../script/main.szs"))?;
-    app.advance_until_waiting();
     register_fallback_textures(&mut app);
+    app.start_game();
     seed_demo_save(&mut app);
+    app.show_title_screen();
 
     run_desktop(WindowConfig::default(), app)
+}
+
+fn example_config() -> GameConfig {
+    GameConfig {
+        title_screen: TitleScreenConfig {
+            enabled: true,
+            title: "Project Suzu".to_owned(),
+            subtitle: "Save Load Demo".to_owned(),
+        },
+        ..GameConfig::default()
+    }
 }
 
 fn seed_demo_save(app: &mut SuzuApp) {

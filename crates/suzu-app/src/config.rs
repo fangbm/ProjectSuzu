@@ -11,6 +11,8 @@ use suzu_platform::WindowConfig;
 pub struct GameConfig {
     pub window: WindowConfig,
     pub script_entry: String,
+    #[serde(default)]
+    pub title_screen: TitleScreenConfig,
 }
 
 impl Default for GameConfig {
@@ -18,6 +20,7 @@ impl Default for GameConfig {
         Self {
             window: WindowConfig::default(),
             script_entry: "script/main.szs".to_owned(),
+            title_screen: TitleScreenConfig::default(),
         }
     }
 }
@@ -29,6 +32,23 @@ impl GameConfig {
 
     pub fn write_json_file(&self, path: impl AsRef<Path>) -> Result<()> {
         write_json(path, self)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TitleScreenConfig {
+    pub enabled: bool,
+    pub title: String,
+    pub subtitle: String,
+}
+
+impl Default for TitleScreenConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            title: "Project Suzu".to_owned(),
+            subtitle: "Galgame Engine".to_owned(),
+        }
     }
 }
 
@@ -142,6 +162,11 @@ mod tests {
                 resizable: false,
             },
             script_entry: "script/prologue.szs".to_owned(),
+            title_screen: TitleScreenConfig {
+                enabled: true,
+                title: "Test Title".to_owned(),
+                subtitle: "Subtitle".to_owned(),
+            },
         };
 
         config.write_json_file(&path).unwrap();
