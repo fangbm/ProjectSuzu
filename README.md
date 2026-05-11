@@ -1,5 +1,7 @@
 # Project Suzu
 
+[简体中文](README.zh-CN.md)
+
 ![Project Suzu icon](assets/branding/Suzu_icon.png)
 
 Project Suzu is a Rust visual novel framework based on the project plan in `docs/project-plan.md`.

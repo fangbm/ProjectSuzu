@@ -46,6 +46,7 @@ jobs:
           Copy-Item "target/release/suzu-branching-story${{ matrix.exe }}" "dist/suzu-branching-story${{ matrix.exe }}"
           Copy-Item "target/release/suzu-ui-save-load-demo${{ matrix.exe }}" "dist/suzu-ui-save-load-demo${{ matrix.exe }}"
           Copy-Item README.md dist/README.md
+          Copy-Item README.zh-CN.md dist/README.zh-CN.md
           Copy-Item CONTRIBUTING.md dist/CONTRIBUTING.md
           Copy-Item SECURITY.md dist/SECURITY.md
           Copy-Item LICENSE-MIT dist/LICENSE-MIT
