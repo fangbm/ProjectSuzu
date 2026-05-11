@@ -1,7 +1,8 @@
 use std::{
-    fs,
+    fmt, fs,
     io::Read,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
 use anyhow::{bail, Context, Result};
@@ -18,11 +19,13 @@ const INDEX_KIND_ZLIB: u8 = 1;
 pub struct Xp3Archive {
     path: PathBuf,
     entries: Vec<Xp3Entry>,
+    options: Xp3Options,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Xp3Entry {
     pub name: String,
+    pub encrypted: bool,
     pub original_size: u64,
     pub packed_size: u64,
     pub checksum: Option<u32>,
@@ -37,17 +40,66 @@ pub struct Xp3Segment {
     pub packed_size: u64,
 }
 
+pub trait Xp3CryptScheme: fmt::Debug + Send + Sync {
+    fn decrypt_name_bytes(&self, _bytes: &mut [u8]) {}
+
+    fn decrypt_segment_bytes(&self, _bytes: &mut [u8], _entry: &Xp3Entry, _segment: &Xp3Segment) {}
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct Xp3Options {
+    pub decryptor: Xp3Decryptor,
+}
+
+#[derive(Debug, Clone, Default)]
+pub enum Xp3Decryptor {
+    #[default]
+    None,
+    Xor {
+        key: u8,
+    },
+    NameXor {
+        key: u8,
+    },
+    Custom {
+        scheme: Arc<dyn Xp3CryptScheme>,
+    },
+}
+
+impl Xp3Decryptor {
+    fn decrypt_name_bytes(&self, bytes: &mut [u8]) {
+        match self {
+            Self::NameXor { key } => xor_bytes(bytes, *key),
+            Self::Custom { scheme } => scheme.decrypt_name_bytes(bytes),
+            Self::None | Self::Xor { .. } => {}
+        }
+    }
+
+    fn decrypt_segment_bytes(&self, bytes: &mut [u8], entry: &Xp3Entry, segment: &Xp3Segment) {
+        match self {
+            Self::Xor { key } => xor_bytes(bytes, *key),
+            Self::Custom { scheme } => scheme.decrypt_segment_bytes(bytes, entry, segment),
+            Self::None | Self::NameXor { .. } => {}
+        }
+    }
+}
+
 impl Xp3Archive {
     pub fn from_file(path: impl AsRef<Path>) -> Result<Self> {
+        Self::from_file_with_options(path, Xp3Options::default())
+    }
+
+    pub fn from_file_with_options(path: impl AsRef<Path>, options: Xp3Options) -> Result<Self> {
         let path = path.as_ref();
         let bytes =
             fs::read(path).with_context(|| format!("failed to read XP3 {}", path.display()))?;
-        let entries = parse_xp3_entries(&bytes)
+        let entries = parse_xp3_entries(&bytes, &options)
             .with_context(|| format!("failed to parse XP3 {}", path.display()))?;
 
         Ok(Self {
             path: path.to_owned(),
             entries,
+            options,
         })
     }
 
@@ -72,15 +124,15 @@ impl Xp3Archive {
     pub fn read_entry(&self, entry: &Xp3Entry) -> Result<Vec<u8>> {
         let archive = fs::read(&self.path)
             .with_context(|| format!("failed to read {}", self.path.display()))?;
-        read_entry_from_bytes(&archive, entry)
+        read_entry_from_bytes(&archive, entry, &self.options)
     }
 }
 
-fn parse_xp3_entries(bytes: &[u8]) -> Result<Vec<Xp3Entry>> {
+fn parse_xp3_entries(bytes: &[u8], options: &Xp3Options) -> Result<Vec<Xp3Entry>> {
     let base_offset = find_xp3_header(bytes).context("XP3 header not found")?;
     let index_offset = resolve_index_offset(bytes, base_offset)?;
     let index = read_index(bytes, index_offset)?;
-    parse_index(&index, base_offset as u64)
+    parse_index(&index, base_offset as u64, options)
 }
 
 fn find_xp3_header(bytes: &[u8]) -> Option<usize> {
@@ -144,7 +196,7 @@ fn read_index(bytes: &[u8], offset: usize) -> Result<Vec<u8>> {
     }
 }
 
-fn parse_index(index: &[u8], base_offset: u64) -> Result<Vec<Xp3Entry>> {
+fn parse_index(index: &[u8], base_offset: u64, options: &Xp3Options) -> Result<Vec<Xp3Entry>> {
     let mut reader = ByteReader::new(index);
     let mut entries = Vec::new();
 
@@ -153,7 +205,7 @@ fn parse_index(index: &[u8], base_offset: u64) -> Result<Vec<Xp3Entry>> {
         let chunk_size = reader.read_u64()? as usize;
         let chunk_bytes = reader.read_bytes(chunk_size)?;
         if chunk == *b"File" {
-            if let Some(entry) = parse_file_chunk(chunk_bytes, base_offset)? {
+            if let Some(entry) = parse_file_chunk(chunk_bytes, base_offset, options)? {
                 entries.push(entry);
             }
         }
@@ -162,7 +214,11 @@ fn parse_index(index: &[u8], base_offset: u64) -> Result<Vec<Xp3Entry>> {
     Ok(entries)
 }
 
-fn parse_file_chunk(chunk: &[u8], base_offset: u64) -> Result<Option<Xp3Entry>> {
+fn parse_file_chunk(
+    chunk: &[u8],
+    base_offset: u64,
+    options: &Xp3Options,
+) -> Result<Option<Xp3Entry>> {
     let mut reader = ByteReader::new(chunk);
     let mut name = None;
     let mut original_size = 0;
@@ -181,7 +237,7 @@ fn parse_file_chunk(chunk: &[u8], base_offset: u64) -> Result<Option<Xp3Entry>> 
                 encrypted = info.read_u32()? != 0;
                 original_size = info.read_u64()?;
                 packed_size = info.read_u64()?;
-                name = Some(info.read_utf16_string()?);
+                name = Some(info.read_utf16_string(&options.decryptor)?);
             }
             b"segm" => {
                 let mut segm = ByteReader::new(section_bytes);
@@ -209,10 +265,6 @@ fn parse_file_chunk(chunk: &[u8], base_offset: u64) -> Result<Option<Xp3Entry>> 
         }
     }
 
-    if encrypted {
-        return Ok(None);
-    }
-
     let Some(name) = name.filter(|name| !name.is_empty()) else {
         return Ok(None);
     };
@@ -222,6 +274,7 @@ fn parse_file_chunk(chunk: &[u8], base_offset: u64) -> Result<Option<Xp3Entry>> 
 
     Ok(Some(Xp3Entry {
         name,
+        encrypted,
         original_size,
         packed_size,
         checksum,
@@ -229,7 +282,11 @@ fn parse_file_chunk(chunk: &[u8], base_offset: u64) -> Result<Option<Xp3Entry>> 
     }))
 }
 
-fn read_entry_from_bytes(archive: &[u8], entry: &Xp3Entry) -> Result<Vec<u8>> {
+fn read_entry_from_bytes(
+    archive: &[u8],
+    entry: &Xp3Entry,
+    options: &Xp3Options,
+) -> Result<Vec<u8>> {
     let mut output = Vec::with_capacity(entry.original_size as usize);
     for segment in &entry.segments {
         let start = segment.offset as usize;
@@ -240,8 +297,15 @@ fn read_entry_from_bytes(archive: &[u8], entry: &Xp3Entry) -> Result<Vec<u8>> {
             bail!("XP3 segment for `{}` exceeds archive size", entry.name);
         }
 
+        let mut segment_bytes = archive[start..end].to_vec();
+        if entry.encrypted {
+            options
+                .decryptor
+                .decrypt_segment_bytes(&mut segment_bytes, entry, segment);
+        }
+
         if segment.compressed {
-            let mut decoder = ZlibDecoder::new(&archive[start..end]);
+            let mut decoder = ZlibDecoder::new(segment_bytes.as_slice());
             let before = output.len();
             decoder
                 .read_to_end(&mut output)
@@ -253,7 +317,7 @@ fn read_entry_from_bytes(archive: &[u8], entry: &Xp3Entry) -> Result<Vec<u8>> {
             if segment.original_size != segment.packed_size {
                 bail!("stored XP3 segment size mismatch for `{}`", entry.name);
             }
-            output.extend_from_slice(&archive[start..end]);
+            output.extend_from_slice(&segment_bytes);
         }
     }
 
@@ -261,6 +325,12 @@ fn read_entry_from_bytes(archive: &[u8], entry: &Xp3Entry) -> Result<Vec<u8>> {
         bail!("XP3 entry size mismatch for `{}`", entry.name);
     }
     Ok(output)
+}
+
+fn xor_bytes(bytes: &mut [u8], key: u8) {
+    for byte in bytes {
+        *byte ^= key;
+    }
 }
 
 fn read_u64_at(bytes: &[u8], offset: usize) -> Result<u64> {
@@ -324,11 +394,18 @@ impl<'a> ByteReader<'a> {
         ))
     }
 
-    fn read_utf16_string(&mut self) -> Result<String> {
+    fn read_utf16_string(&mut self, decryptor: &Xp3Decryptor) -> Result<String> {
         let char_count = self.read_u16()? as usize;
+        let raw_len = char_count
+            .checked_mul(2)
+            .context("XP3 UTF-16 name length overflow")?;
+        let mut raw = self.read_bytes(raw_len)?.to_vec();
+        decryptor.decrypt_name_bytes(&mut raw);
         let mut chars = Vec::with_capacity(char_count);
-        for _ in 0..char_count {
-            chars.push(self.read_u16()?);
+        for chunk in raw.chunks_exact(2) {
+            chars.push(u16::from_le_bytes(
+                chunk.try_into().expect("slice length is fixed"),
+            ));
         }
         String::from_utf16(&chars).context("invalid XP3 UTF-16 file name")
     }
@@ -389,6 +466,27 @@ mod tests {
         let _ = fs::remove_dir_all(root);
     }
 
+    #[test]
+    fn xp3_reads_xor_encrypted_segment() {
+        let root = test_dir("suzu-xp3-xor");
+        fs::create_dir_all(&root).unwrap();
+        let path = root.join("encrypted.xp3");
+        write_test_xp3_with_encryption(&path, "voice/line.ogg", b"voice bytes", 0x5a);
+
+        let archive = Xp3Archive::from_file_with_options(
+            &path,
+            Xp3Options {
+                decryptor: Xp3Decryptor::Xor { key: 0x5a },
+            },
+        )
+        .unwrap();
+
+        assert!(archive.entries()[0].encrypted);
+        assert_eq!(archive.read_file("voice/line.ogg").unwrap(), b"voice bytes");
+
+        let _ = fs::remove_dir_all(root);
+    }
+
     fn write_test_xp3(
         path: &Path,
         name: &str,
@@ -432,6 +530,22 @@ mod tests {
         fs::write(path, bytes).unwrap();
     }
 
+    fn write_test_xp3_with_encryption(path: &Path, name: &str, data: &[u8], key: u8) {
+        let mut segment = data.to_vec();
+        xor_bytes(&mut segment, key);
+        let segment_offset = XP3_HEADER_LEN as u64;
+        let index_offset = segment_offset + segment.len() as u64;
+        let index = build_index_with_encryption(name, data.len() as u64, &segment, segment_offset);
+
+        let mut bytes = XP3_MAGIC.to_vec();
+        bytes.extend_from_slice(&index_offset.to_le_bytes());
+        bytes.extend_from_slice(&segment);
+        bytes.push(INDEX_KIND_RAW);
+        bytes.extend_from_slice(&(index.len() as u64).to_le_bytes());
+        bytes.extend_from_slice(&index);
+        fs::write(path, bytes).unwrap();
+    }
+
     fn build_index(
         name: &str,
         original_size: u64,
@@ -451,6 +565,37 @@ mod tests {
 
         let mut segm = Vec::new();
         segm.extend_from_slice(&(u32::from(compressed_segment)).to_le_bytes());
+        segm.extend_from_slice(&segment_offset.to_le_bytes());
+        segm.extend_from_slice(&original_size.to_le_bytes());
+        segm.extend_from_slice(&(packed_segment.len() as u64).to_le_bytes());
+
+        let mut file = Vec::new();
+        push_chunk(&mut file, b"info", &info);
+        push_chunk(&mut file, b"segm", &segm);
+
+        let mut index = Vec::new();
+        push_chunk(&mut index, b"File", &file);
+        index
+    }
+
+    fn build_index_with_encryption(
+        name: &str,
+        original_size: u64,
+        packed_segment: &[u8],
+        segment_offset: u64,
+    ) -> Vec<u8> {
+        let mut info = Vec::new();
+        info.extend_from_slice(&1_u32.to_le_bytes());
+        info.extend_from_slice(&original_size.to_le_bytes());
+        info.extend_from_slice(&(packed_segment.len() as u64).to_le_bytes());
+        let name_utf16 = name.encode_utf16().collect::<Vec<_>>();
+        info.extend_from_slice(&(name_utf16.len() as u16).to_le_bytes());
+        for ch in name_utf16 {
+            info.extend_from_slice(&ch.to_le_bytes());
+        }
+
+        let mut segm = Vec::new();
+        segm.extend_from_slice(&0_u32.to_le_bytes());
         segm.extend_from_slice(&segment_offset.to_le_bytes());
         segm.extend_from_slice(&original_size.to_le_bytes());
         segm.extend_from_slice(&(packed_segment.len() as u64).to_le_bytes());

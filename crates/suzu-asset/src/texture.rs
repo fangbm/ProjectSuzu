@@ -15,13 +15,24 @@ impl TextureAsset {
         let image = image::open(path)
             .with_context(|| format!("failed to decode texture {}", path.display()))?
             .to_rgba8();
+        Ok(Self::from_rgba_image(image))
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+        let image = image::load_from_memory(bytes)
+            .context("failed to decode texture bytes")?
+            .to_rgba8();
+        Ok(Self::from_rgba_image(image))
+    }
+
+    fn from_rgba_image(image: image::RgbaImage) -> Self {
         let (width, height) = image.dimensions();
 
-        Ok(Self {
+        Self {
             width,
             height,
             rgba: image.into_raw(),
-        })
+        }
     }
 }
 
@@ -49,5 +60,20 @@ mod tests {
         assert_eq!(texture.rgba, vec![255, 128, 64, 255]);
 
         let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn decodes_png_texture_from_bytes() {
+        let image = image::RgbaImage::from_raw(1, 1, vec![32, 64, 96, 255]).unwrap();
+        let mut cursor = std::io::Cursor::new(Vec::new());
+        image
+            .write_to(&mut cursor, image::ImageFormat::Png)
+            .unwrap();
+
+        let texture = TextureAsset::from_bytes(&cursor.into_inner()).unwrap();
+
+        assert_eq!(texture.width, 1);
+        assert_eq!(texture.height, 1);
+        assert_eq!(texture.rgba, vec![32, 64, 96, 255]);
     }
 }

@@ -46,7 +46,7 @@ cargo run -p suzu-editor
 - `crates/suzu-text`: markup normalization, reveal state, ruby data, vertical layout, and voice reveal sync.
 - `crates/suzu-audio`: audio channel state, fades, snapshots, and backend command synchronization.
 - `crates/suzu-save`: JSON save slots, quicksave, autosave, thumbnails, history, and audio state.
-- `crates/suzu-asset`: texture discovery, async loading, LRU cache, manifests, `.suzupack` archive reads, and experimental unencrypted KiriKiri XP3 archive reads.
+- `crates/suzu-asset`: texture discovery, async loading, LRU cache, manifests, `.suzupack` archive reads, and experimental KiriKiri XP3 archive reads.
 - `crates/suzu-input`: keyboard, mouse, wheel, and selection trigger maps.
 - `crates/suzu-platform`: desktop `winit`/`wgpu` integration and platform configuration types.
 - `crates/suzu-editor-core`: visual script editor document model, import/export, graph diagnostics, project scan, and undo commands.
@@ -63,7 +63,30 @@ cargo run -p suzu-editor
 
 ## XP3 Resources
 
-`suzu-asset` includes experimental KiriKiri XP3 archive parsing through `Xp3Archive`. The current reader indexes unencrypted XP3 `File` entries and can extract stored or zlib-compressed segments. It intentionally skips encrypted entries and does not yet integrate XP3 paths into `AssetManager` texture loading.
+`suzu-asset` includes experimental KiriKiri XP3 archive parsing through `Xp3Archive`. The reader indexes XP3 `File` entries, extracts stored or zlib-compressed segments, and can be registered directly into `AssetManager`:
+
+```rust
+let mut app = SuzuApp::default();
+app.register_xp3_file("data.xp3")?;
+app.load_script_asset("main")?;
+```
+
+When an XP3 is registered, supported entries are exposed as normal assets by file stem. For example, `scenario/main.szs` becomes the script asset `main`, and `image/bg_school.png` becomes the texture asset `bg_school`. Scripts can then reference those ids normally, such as `@bg file="bg_school"`.
+
+Encrypted XP3 entries are no longer skipped. Built-in decryptor options cover simple XOR segment encryption and XOR-obfuscated names:
+
+```rust
+use suzu_asset::{Xp3Decryptor, Xp3Options};
+
+app.register_xp3_file_with_options(
+    "data.xp3",
+    Xp3Options {
+        decryptor: Xp3Decryptor::Xor { key: 0x5a },
+    },
+)?;
+```
+
+Special KRKR/game-specific schemes can implement `Xp3CryptScheme` and pass it through `Xp3Decryptor::Custom`. These schemes differ by game or plugin, so Project Suzu provides the hook rather than pretending there is one universal KRKR decryption rule.
 
 ## Title Screen
 

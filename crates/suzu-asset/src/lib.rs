@@ -10,4 +10,6 @@ pub use manager::{AssetManager, AsyncTextureLoad};
 pub use manifest::{AssetCompression, AssetManifestEntry, PackageManifest};
 pub use texture::TextureAsset;
 pub use types::{AssetId, AssetType, Handle};
-pub use xp3::{xp3_magic, Xp3Archive, Xp3Entry, Xp3Segment};
+pub use xp3::{
+    xp3_magic, Xp3Archive, Xp3CryptScheme, Xp3Decryptor, Xp3Entry, Xp3Options, Xp3Segment,
+};
