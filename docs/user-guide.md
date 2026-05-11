@@ -46,7 +46,7 @@ cargo run -p suzu-editor
 - `crates/suzu-text`: markup normalization, reveal state, ruby data, vertical layout, and voice reveal sync.
 - `crates/suzu-audio`: audio channel state, fades, snapshots, and backend command synchronization.
 - `crates/suzu-save`: JSON save slots, quicksave, autosave, thumbnails, history, and audio state.
-- `crates/suzu-asset`: texture discovery, async loading, LRU cache, manifests, and `.suzupack` archive reads.
+- `crates/suzu-asset`: texture discovery, async loading, LRU cache, manifests, `.suzupack` archive reads, and experimental unencrypted KiriKiri XP3 archive reads.
 - `crates/suzu-input`: keyboard, mouse, wheel, and selection trigger maps.
 - `crates/suzu-platform`: desktop `winit`/`wgpu` integration and platform configuration types.
 - `crates/suzu-editor-core`: visual script editor document model, import/export, graph diagnostics, project scan, and undo commands.
@@ -60,6 +60,10 @@ cargo run -p suzu-editor
 5. Advance the app with frame deltas and input events.
 6. Render the app scene using the platform renderer.
 7. Capture saves through the save manager.
+
+## XP3 Resources
+
+`suzu-asset` includes experimental KiriKiri XP3 archive parsing through `Xp3Archive`. The current reader indexes unencrypted XP3 `File` entries and can extract stored or zlib-compressed segments. It intentionally skips encrypted entries and does not yet integrate XP3 paths into `AssetManager` texture loading.
 
 ## Title Screen
 

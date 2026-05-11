@@ -3640,6 +3640,7 @@ name = "suzu-asset"
 version = "0.1.3"
 dependencies = [
  "anyhow",
+ "flate2",
  "image 0.25.6",
  "serde",
  "serde_json",
