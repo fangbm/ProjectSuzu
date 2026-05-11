@@ -30,11 +30,11 @@ Custom output and asset root:
 `.github/workflows/release.yml` builds Linux, Windows, and macOS artifacts on tags matching `v*`.
 
 ```powershell
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.1.3
+git push origin v0.1.3
 ```
 
-The workflow uploads per-platform archives containing tools, the visual script editor, benchmark CLI, examples, packed hello-world assets, README, and core/developer documentation. Release asset filenames include the tag, for example `project-suzu-v0.1.2-windows-x64.tar.gz`.
+The workflow uploads per-platform archives containing tools, the visual script editor, benchmark CLI, examples, packed hello-world assets, README, and core/developer documentation. Release asset filenames include the tag, for example `project-suzu-v0.1.3-windows-x64.tar.gz`.
 
 Use `docs/release-checklist.md` as the final pre-tag checklist.
 

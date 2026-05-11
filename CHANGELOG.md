@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.3 - 2026-05-11
+
+- Added the first visual script editor MVP with `suzu-editor-core` and the `suzu-editor` desktop tool.
+- Added `.szs` import/export, graph diagnostics, project scanning, undo command primitives, node editing UI, and editor packaging.
+- Updated release documentation so desktop packages include the visual script editor.
+
 ## 0.1.0 - 2026-05-11
 
 - Created the Project Suzu Rust workspace with typed crates for app, script, render, text, audio, assets, save, input, and platform boundaries.
