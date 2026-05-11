@@ -3,6 +3,7 @@ use std::time::Instant;
 use suzu_app::{GameConfig, SuzuApp};
 
 fn main() -> anyhow::Result<()> {
+    let launched_without_args = std::env::args_os().len() == 1;
     let iterations = std::env::args()
         .nth(1)
         .and_then(|value| value.parse::<usize>().ok())
@@ -30,7 +31,20 @@ fn main() -> anyhow::Result<()> {
         "commands_per_second={:.2}",
         steps as f64 / run_elapsed.as_secs_f64().max(f64::EPSILON)
     );
+    if launched_without_args {
+        pause_for_double_click();
+    }
     Ok(())
+}
+
+fn pause_for_double_click() {
+    #[cfg(windows)]
+    {
+        println!();
+        println!("Press Enter to close...");
+        let mut line = String::new();
+        let _ = std::io::stdin().read_line(&mut line);
+    }
 }
 
 fn stress_script(iterations: usize) -> String {

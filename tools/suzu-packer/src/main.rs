@@ -59,6 +59,12 @@ struct PackerArgs {
 }
 
 fn main() -> Result<()> {
+    if env::args_os().len() == 1 {
+        print_usage();
+        pause_for_double_click();
+        return Ok(());
+    }
+
     let args = parse_args(env::args_os().skip(1))?;
     let manifest = build_manifest(&args.root)
         .with_context(|| format!("failed to build manifest for {}", args.root.display()))?;
@@ -84,6 +90,24 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn print_usage() {
+    println!("usage: suzu-packer <asset-root> [--output manifest.json] [--pack assets.suzupack]");
+    println!();
+    println!("examples:");
+    println!("  suzu-packer examples\\hello-world --output target\\hello-world-assets.json");
+    println!("  suzu-packer examples\\hello-world --pack target\\hello-world.suzupack");
+}
+
+fn pause_for_double_click() {
+    #[cfg(windows)]
+    {
+        println!();
+        println!("Press Enter to close...");
+        let mut line = String::new();
+        let _ = std::io::stdin().read_line(&mut line);
+    }
 }
 
 fn parse_args<I>(args: I) -> Result<PackerArgs>

@@ -4,6 +4,15 @@ use anyhow::{bail, Context, Result};
 use suzu_script::compile_script;
 
 fn main() -> Result<()> {
+    if env::args_os().len() == 1 {
+        println!("usage: suzu-compiler <input.szs>");
+        println!();
+        println!("example:");
+        println!("  suzu-compiler examples\\hello-world\\script\\main.szs");
+        pause_for_double_click();
+        return Ok(());
+    }
+
     let input = input_path()?;
     let source = fs::read_to_string(&input)
         .with_context(|| format!("failed to read script {}", input.display()))?;
@@ -21,4 +30,13 @@ fn input_path() -> Result<PathBuf> {
         bail!("usage: suzu-compiler <input.szs>");
     }
     Ok(input.into())
+}
+
+fn pause_for_double_click() {
+    #[cfg(windows)]
+    {
+        println!("Press Enter to close...");
+        let mut line = String::new();
+        let _ = std::io::stdin().read_line(&mut line);
+    }
 }
