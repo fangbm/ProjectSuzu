@@ -35,6 +35,8 @@ struct LauncherApp {
     project: Option<ProjectIndex>,
     selected_project_script: Option<usize>,
     xp3_path: String,
+    krkr_path: String,
+    krkr_report: Option<KrkrPackageReport>,
     xor_enabled: bool,
     xor_key: String,
     xp3_entries: Vec<EntryRow>,
@@ -49,6 +51,26 @@ struct EntryRow {
     kind: AssetType,
     encrypted: bool,
     original_size: u64,
+}
+
+#[derive(Debug, Clone)]
+struct KrkrPackageReport {
+    root: PathBuf,
+    archives: Vec<KrkrArchiveSummary>,
+    total_entries: usize,
+    total_scripts: usize,
+    encrypted_scripts: usize,
+}
+
+#[derive(Debug, Clone)]
+struct KrkrArchiveSummary {
+    path: PathBuf,
+    bytes: u64,
+    entries: usize,
+    scripts: usize,
+    encrypted_scripts: usize,
+    candidates: Vec<String>,
+    error: Option<String>,
 }
 
 struct GamePreview {
@@ -66,6 +88,8 @@ impl LauncherApp {
             project: None,
             selected_project_script: None,
             xp3_path: String::new(),
+            krkr_path: String::new(),
+            krkr_report: None,
             xor_enabled: false,
             xor_key: "5A".to_owned(),
             xp3_entries: Vec::new(),
@@ -83,6 +107,7 @@ impl LauncherApp {
                 app.load_xp3();
             } else {
                 app.project_path = initial.display().to_string();
+                app.krkr_path = initial.display().to_string();
                 app.scan_project();
             }
         }
@@ -144,6 +169,91 @@ impl LauncherApp {
                 self.status = format!("Failed to import XP3: {error:#}");
             }
         }
+    }
+
+    fn scan_krkr_package(&mut self) {
+        let root = PathBuf::from(clean_path_input(&self.krkr_path));
+        let mut archives = Vec::new();
+        let mut total_entries = 0;
+        let mut total_scripts = 0;
+        let mut encrypted_scripts = 0;
+
+        let read_dir = match fs::read_dir(&root) {
+            Ok(read_dir) => read_dir,
+            Err(error) => {
+                self.krkr_report = None;
+                self.status = format!("Failed to scan KRKR folder: {error}");
+                return;
+            }
+        };
+
+        for entry in read_dir.flatten() {
+            let path = entry.path();
+            if !path
+                .extension()
+                .and_then(|extension| extension.to_str())
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("xp3"))
+            {
+                continue;
+            }
+
+            let bytes = entry.metadata().map(|meta| meta.len()).unwrap_or_default();
+            let summary = match Xp3Archive::from_file(&path) {
+                Ok(archive) => {
+                    let rows = archive
+                        .entries()
+                        .iter()
+                        .map(EntryRow::from)
+                        .collect::<Vec<_>>();
+                    let scripts = rows
+                        .iter()
+                        .filter(|row| matches!(row.kind, AssetType::Script | AssetType::Data))
+                        .collect::<Vec<_>>();
+                    let encrypted = scripts.iter().filter(|row| row.encrypted).count();
+                    let candidates = scripts
+                        .iter()
+                        .filter(|row| krkr_entry_looks_like_entrypoint(&row.name))
+                        .take(12)
+                        .map(|row| row.name.clone())
+                        .collect::<Vec<_>>();
+                    total_entries += rows.len();
+                    total_scripts += scripts.len();
+                    encrypted_scripts += encrypted;
+                    KrkrArchiveSummary {
+                        path,
+                        bytes,
+                        entries: rows.len(),
+                        scripts: scripts.len(),
+                        encrypted_scripts: encrypted,
+                        candidates,
+                        error: None,
+                    }
+                }
+                Err(error) => KrkrArchiveSummary {
+                    path,
+                    bytes,
+                    entries: 0,
+                    scripts: 0,
+                    encrypted_scripts: 0,
+                    candidates: Vec::new(),
+                    error: Some(format!("{error:#}")),
+                },
+            };
+            archives.push(summary);
+        }
+
+        archives.sort_by(|left, right| left.path.cmp(&right.path));
+        self.status = format!(
+            "KRKR scan complete: {} XP3 archives, {total_scripts} script-like entries.",
+            archives.len()
+        );
+        self.krkr_report = Some(KrkrPackageReport {
+            root,
+            archives,
+            total_entries,
+            total_scripts,
+            encrypted_scripts,
+        });
     }
 
     fn xp3_options(&self) -> Result<Xp3Options, String> {
@@ -248,6 +358,7 @@ impl LauncherApp {
             self.load_xp3();
         } else if path.is_dir() {
             self.project_path = path.display().to_string();
+            self.krkr_path = path.display().to_string();
             self.scan_project();
         }
     }
@@ -345,6 +456,65 @@ impl LauncherApp {
                 }
             }
         });
+
+        ui.separator();
+        ui.heading("KRKR Package");
+        ui.horizontal(|ui| {
+            ui.label("Folder");
+            let response = ui.text_edit_singleline(&mut self.krkr_path);
+            if response.lost_focus() && ui.input(|input| input.key_pressed(egui::Key::Enter)) {
+                self.scan_krkr_package();
+            }
+            if ui.button("Scan").clicked() {
+                self.scan_krkr_package();
+            }
+        });
+        if let Some(report) = &self.krkr_report {
+            ui.label(format!(
+                "{} XP3 · {} entries · {} script-like · {} encrypted scripts",
+                report.archives.len(),
+                report.total_entries,
+                report.total_scripts,
+                report.encrypted_scripts
+            ));
+            ui.label(format!("Root: {}", report.root.display()));
+            egui::ScrollArea::vertical()
+                .max_height(190.0)
+                .show(ui, |ui| {
+                    for archive in &report.archives {
+                        let name = archive
+                            .path
+                            .file_name()
+                            .and_then(|name| name.to_str())
+                            .unwrap_or("<xp3>");
+                        if let Some(error) = &archive.error {
+                            ui.colored_label(
+                                egui::Color32::from_rgb(210, 72, 72),
+                                format!("{name} · failed · {error}"),
+                            );
+                            continue;
+                        }
+                        ui.label(format!(
+                            "{name} · {} MB · {} entries · {} scripts · {} encrypted",
+                            archive.bytes / 1024 / 1024,
+                            archive.entries,
+                            archive.scripts,
+                            archive.encrypted_scripts
+                        ));
+                        for candidate in &archive.candidates {
+                            ui.label(format!("  entry: {candidate}"));
+                        }
+                    }
+                });
+            if report.encrypted_scripts > 0 {
+                ui.colored_label(
+                    egui::Color32::from_rgb(190, 92, 32),
+                    "KRKR scripts are encrypted; add a game-specific decryptor before conversion.",
+                );
+            }
+        } else {
+            ui.label("Paste a KRKR game folder or drop it into the launcher.");
+        }
     }
 
     fn game_panel(&mut self, ui: &mut egui::Ui) {
@@ -474,6 +644,27 @@ fn asset_id_from_path(path: &str) -> String {
         .and_then(|stem| stem.to_str())
         .unwrap_or(path)
         .to_owned()
+}
+
+fn krkr_entry_looks_like_entrypoint(path: &str) -> bool {
+    let normalized = path.replace('\\', "/").to_ascii_lowercase();
+    matches!(
+        normalized.as_str(),
+        "startup.tjs"
+            | "system/startup.tjs"
+            | "appconfig.tjs"
+            | "main/config.tjs"
+            | "main/envinit.tjs"
+            | "main/default.tjs"
+            | "main/custom.ks"
+            | "main/custom.tjs"
+            | "first.ks"
+            | "start.ks"
+            | "title.ks"
+    ) || normalized.ends_with("/startup.tjs")
+        || normalized.ends_with("/first.ks")
+        || normalized.ends_with("/start.ks")
+        || normalized.ends_with("/title.ks")
 }
 
 fn xp3_path_from_input(input: &str) -> Result<PathBuf, String> {

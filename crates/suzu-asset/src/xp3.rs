@@ -1,6 +1,6 @@
 use std::{
     fmt, fs,
-    io::Read,
+    io::{Read, Seek, SeekFrom},
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -91,9 +91,7 @@ impl Xp3Archive {
 
     pub fn from_file_with_options(path: impl AsRef<Path>, options: Xp3Options) -> Result<Self> {
         let path = path.as_ref();
-        let bytes =
-            fs::read(path).with_context(|| format!("failed to read XP3 {}", path.display()))?;
-        let entries = parse_xp3_entries(&bytes, &options)
+        let entries = parse_xp3_entries_from_file(path, &options)
             .with_context(|| format!("failed to parse XP3 {}", path.display()))?;
 
         Ok(Self {
@@ -128,10 +126,12 @@ impl Xp3Archive {
     }
 }
 
-fn parse_xp3_entries(bytes: &[u8], options: &Xp3Options) -> Result<Vec<Xp3Entry>> {
-    let base_offset = find_xp3_header(bytes).context("XP3 header not found")?;
-    let index_offset = resolve_index_offset(bytes, base_offset)?;
-    let index = read_index_chain(bytes, base_offset, index_offset)?;
+fn parse_xp3_entries_from_file(path: &Path, options: &Xp3Options) -> Result<Vec<Xp3Entry>> {
+    let mut file =
+        fs::File::open(path).with_context(|| format!("failed to open XP3 {}", path.display()))?;
+    let base_offset = find_xp3_header_in_file(&mut file)?.context("XP3 header not found")?;
+    let index_offset = resolve_index_offset_from_file(&mut file, base_offset)?;
+    let index = read_index_chain_from_file(&mut file, base_offset, index_offset)?;
     parse_index(&index, base_offset as u64, options)
 }
 
@@ -141,19 +141,31 @@ fn find_xp3_header(bytes: &[u8]) -> Option<usize> {
         .position(|window| window == XP3_MAGIC)
 }
 
-fn resolve_index_offset(bytes: &[u8], base_offset: usize) -> Result<usize> {
+fn find_xp3_header_in_file(file: &mut fs::File) -> Result<Option<usize>> {
+    file.seek(SeekFrom::Start(0))?;
+    let mut head = vec![0; 1024 * 1024];
+    let len = file.read(&mut head)?;
+    head.truncate(len);
+    Ok(find_xp3_header(&head))
+}
+
+fn resolve_index_offset_from_file(file: &mut fs::File, base_offset: usize) -> Result<u64> {
     let index_pointer = base_offset + XP3_MAGIC.len();
-    let index_offset = base_offset + read_u64_at(bytes, index_pointer)? as usize;
-    if index_offset >= bytes.len() {
+    let index_offset = base_offset as u64 + read_u64_at_file(file, index_pointer as u64)?;
+    if index_offset >= file.metadata()?.len() {
         bail!("XP3 index offset exceeds archive size");
     }
-
     Ok(index_offset)
 }
 
-fn read_index_chain(bytes: &[u8], base_offset: usize, mut offset: usize) -> Result<Vec<u8>> {
+fn read_index_chain_from_file(
+    file: &mut fs::File,
+    base_offset: usize,
+    mut offset: u64,
+) -> Result<Vec<u8>> {
     let mut index = Vec::new();
     let mut seen_offsets = Vec::new();
+    let file_size = file.metadata()?.len();
 
     loop {
         if seen_offsets.contains(&offset) {
@@ -161,16 +173,14 @@ fn read_index_chain(bytes: &[u8], base_offset: usize, mut offset: usize) -> Resu
         }
         seen_offsets.push(offset);
 
-        let (mut chunk, next_offset) = read_index_chunk(bytes, offset)?;
+        let (mut chunk, next_offset) = read_index_chunk_from_file(file, offset)?;
         index.append(&mut chunk);
 
         let Some(next_offset) = next_offset else {
             break;
         };
-        offset = base_offset
-            .checked_add(next_offset as usize)
-            .context("XP3 chained index offset overflow")?;
-        if offset >= bytes.len() {
+        offset = base_offset as u64 + next_offset;
+        if offset >= file_size {
             bail!("XP3 chained index offset exceeds archive size");
         }
     }
@@ -178,33 +188,28 @@ fn read_index_chain(bytes: &[u8], base_offset: usize, mut offset: usize) -> Resu
     Ok(index)
 }
 
-fn read_index_chunk(bytes: &[u8], offset: usize) -> Result<(Vec<u8>, Option<u64>)> {
-    let kind = *bytes.get(offset).context("XP3 index kind is missing")?;
-    let has_next = kind & 0x80 != 0;
-    let kind = kind & 0x7f;
+fn read_index_chunk_from_file(file: &mut fs::File, offset: u64) -> Result<(Vec<u8>, Option<u64>)> {
+    file.seek(SeekFrom::Start(offset))?;
+    let mut kind = [0_u8; 1];
+    file.read_exact(&mut kind)
+        .context("XP3 index kind is missing")?;
+    let has_next = kind[0] & 0x80 != 0;
+    let kind = kind[0] & 0x7f;
     let (index, next_pointer_offset) = match kind {
         INDEX_KIND_RAW => {
-            let size = read_u64_at(bytes, offset + 1)? as usize;
-            let start = offset + 9;
-            let end = start
-                .checked_add(size)
-                .context("XP3 raw index size overflow")?;
-            if end > bytes.len() {
-                bail!("XP3 raw index exceeds archive size");
-            }
-            (bytes[start..end].to_vec(), end)
+            let size = read_u64_from_reader(file)? as usize;
+            let mut index = vec![0; size];
+            file.read_exact(&mut index)
+                .context("failed to read XP3 raw index")?;
+            (index, offset + 9 + size as u64)
         }
         INDEX_KIND_ZLIB => {
-            let packed_size = read_u64_at(bytes, offset + 1)? as usize;
-            let unpacked_size = read_u64_at(bytes, offset + 9)? as usize;
-            let start = offset + 17;
-            let end = start
-                .checked_add(packed_size)
-                .context("XP3 packed index size overflow")?;
-            if end > bytes.len() {
-                bail!("XP3 packed index exceeds archive size");
-            }
-            let mut decoder = ZlibDecoder::new(&bytes[start..end]);
+            let packed_size = read_u64_from_reader(file)? as usize;
+            let unpacked_size = read_u64_from_reader(file)? as usize;
+            let mut packed = vec![0; packed_size];
+            file.read_exact(&mut packed)
+                .context("failed to read XP3 packed index")?;
+            let mut decoder = ZlibDecoder::new(packed.as_slice());
             let mut decoded = Vec::with_capacity(unpacked_size);
             decoder
                 .read_to_end(&mut decoded)
@@ -212,14 +217,16 @@ fn read_index_chunk(bytes: &[u8], offset: usize) -> Result<(Vec<u8>, Option<u64>
             if decoded.len() != unpacked_size {
                 bail!("XP3 index unpacked size mismatch");
             }
-            (decoded, end)
+            (decoded, offset + 17 + packed_size as u64)
         }
         _ => bail!("unsupported XP3 index kind {kind}"),
     };
 
-    let next_offset = has_next
-        .then(|| read_u64_at(bytes, next_pointer_offset))
-        .transpose()?;
+    let next_offset = if has_next {
+        Some(read_u64_at_file(file, next_pointer_offset)?)
+    } else {
+        None
+    };
     Ok((index, next_offset))
 }
 
@@ -360,12 +367,17 @@ fn xor_bytes(bytes: &mut [u8], key: u8) {
     }
 }
 
-fn read_u64_at(bytes: &[u8], offset: usize) -> Result<u64> {
-    let end = offset.checked_add(8).context("XP3 u64 offset overflow")?;
-    let slice = bytes.get(offset..end).context("XP3 u64 is out of bounds")?;
-    Ok(u64::from_le_bytes(
-        slice.try_into().expect("slice length is fixed"),
-    ))
+fn read_u64_at_file(file: &mut fs::File, offset: u64) -> Result<u64> {
+    file.seek(SeekFrom::Start(offset))?;
+    read_u64_from_reader(file)
+}
+
+fn read_u64_from_reader(reader: &mut impl Read) -> Result<u64> {
+    let mut bytes = [0_u8; 8];
+    reader
+        .read_exact(&mut bytes)
+        .context("XP3 u64 is out of bounds")?;
+    Ok(u64::from_le_bytes(bytes))
 }
 
 fn normalize_path(path: &str) -> String {
