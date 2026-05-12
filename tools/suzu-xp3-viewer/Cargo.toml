@@ -8,4 +8,7 @@ rust-version.workspace = true
 [dependencies]
 anyhow.workspace = true
 eframe.workspace = true
+suzu-app.workspace = true
 suzu-asset.workspace = true
+suzu-core.workspace = true
+suzu-platform.workspace = true

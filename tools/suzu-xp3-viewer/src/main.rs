@@ -1,9 +1,15 @@
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
-use std::path::{Path, PathBuf};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    time::Instant,
+};
 
 use eframe::egui;
+use suzu_app::{GameConfig, SuzuApp, TitleScreenConfig};
 use suzu_asset::{AssetType, TextureAsset, Xp3Archive, Xp3Decryptor, Xp3Entry, Xp3Options};
+use suzu_platform::{DesktopApp, DesktopFrame, DesktopInputEvent, FrameSprite, FrameText};
 
 fn main() -> eframe::Result<()> {
     let initial_path = std::env::args_os()
@@ -32,6 +38,7 @@ struct Xp3ViewerApp {
     entries: Vec<EntryRow>,
     selected: Option<usize>,
     preview: Preview,
+    game: Option<GamePreview>,
     status: String,
 }
 
@@ -67,6 +74,13 @@ enum Preview {
     },
 }
 
+struct GamePreview {
+    app: SuzuApp,
+    script_id: String,
+    textures: HashMap<String, egui::TextureHandle>,
+    last_frame: Instant,
+}
+
 impl Xp3ViewerApp {
     fn new(cc: &eframe::CreationContext<'_>, initial_path: String) -> Self {
         let mut app = Self {
@@ -77,6 +91,7 @@ impl Xp3ViewerApp {
             entries: Vec::new(),
             selected: None,
             preview: Preview::Empty,
+            game: None,
             status: "Enter an XP3 path and press Load.".to_owned(),
         };
         if !app.xp3_path.trim().is_empty() {
@@ -106,6 +121,7 @@ impl Xp3ViewerApp {
                 self.archive = Some(archive);
                 self.selected = None;
                 self.preview = Preview::Empty;
+                self.game = None;
                 if !self.entries.is_empty() {
                     self.select_entry(ctx, 0);
                 }
@@ -115,6 +131,7 @@ impl Xp3ViewerApp {
                 self.entries.clear();
                 self.selected = None;
                 self.preview = Preview::Empty;
+                self.game = None;
                 self.status = format!("Failed to load XP3: {error:#}");
             }
         }
@@ -159,6 +176,73 @@ impl Xp3ViewerApp {
         }
     }
 
+    fn start_game(&mut self) {
+        let path = PathBuf::from(self.xp3_path.trim());
+        let Some(script_id) = self.selected_script_id() else {
+            self.status =
+                "No script entry found. Select a .szs script or add one to the XP3.".to_owned();
+            return;
+        };
+        let options = match self.xp3_options() {
+            Ok(options) => options,
+            Err(error) => {
+                self.status = error;
+                return;
+            }
+        };
+
+        let mut app = SuzuApp::new(GameConfig {
+            title_screen: TitleScreenConfig {
+                enabled: false,
+                title: "Project Suzu".to_owned(),
+                subtitle: "XP3 Preview".to_owned(),
+            },
+            ..GameConfig::default()
+        });
+
+        match app
+            .register_xp3_file_with_options(&path, options)
+            .and_then(|_| app.load_script_asset(script_id.as_str()))
+        {
+            Ok(()) => {
+                app.advance_until_waiting();
+                self.status = format!("Started script `{script_id}` from {}.", path.display());
+                self.game = Some(GamePreview {
+                    app,
+                    script_id,
+                    textures: HashMap::new(),
+                    last_frame: Instant::now(),
+                });
+            }
+            Err(error) => {
+                self.status = format!("Failed to start game: {error:#}");
+            }
+        }
+    }
+
+    fn selected_script_id(&self) -> Option<String> {
+        if let Some(index) = self.selected {
+            let row = self.entries.get(index)?;
+            if row.kind == AssetType::Script {
+                return Some(asset_id_from_path(&row.name));
+            }
+        }
+
+        self.entries
+            .iter()
+            .filter(|row| row.kind == AssetType::Script)
+            .find(|row| {
+                let id = asset_id_from_path(&row.name).to_ascii_lowercase();
+                matches!(id.as_str(), "main" | "start" | "script" | "scenario")
+            })
+            .or_else(|| {
+                self.entries
+                    .iter()
+                    .find(|row| row.kind == AssetType::Script)
+            })
+            .map(|row| asset_id_from_path(&row.name))
+    }
+
     fn top_bar(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
         ui.horizontal(|ui| {
             ui.heading("Project Suzu XP3 Viewer");
@@ -173,6 +257,17 @@ impl Xp3ViewerApp {
             }
             if ui.button("Load").clicked() {
                 self.load_archive(ctx);
+            }
+            let can_start = self.selected_script_id().is_some();
+            if ui
+                .add_enabled(can_start, egui::Button::new("Start Game"))
+                .clicked()
+            {
+                self.start_game();
+            }
+            if self.game.is_some() && ui.button("Stop").clicked() {
+                self.game = None;
+                self.status = "Stopped game preview.".to_owned();
             }
         });
         ui.horizontal(|ui| {
@@ -211,6 +306,11 @@ impl Xp3ViewerApp {
     }
 
     fn preview_panel(&mut self, ui: &mut egui::Ui) {
+        if self.game.is_some() {
+            self.game_panel(ui);
+            return;
+        }
+
         ui.heading("Preview");
         ui.separator();
 
@@ -258,6 +358,50 @@ impl Xp3ViewerApp {
                 ui.label(message);
             }
         }
+    }
+
+    fn game_panel(&mut self, ui: &mut egui::Ui) {
+        let Some(game) = &mut self.game else {
+            return;
+        };
+
+        ui.heading(format!("Playing `{}`", game.script_id));
+        ui.separator();
+
+        let now = Instant::now();
+        let delta_ms = now
+            .duration_since(game.last_frame)
+            .as_millis()
+            .clamp(0, u32::MAX as u128) as u32;
+        game.last_frame = now;
+
+        if ui.input(|input| {
+            input.key_pressed(egui::Key::Enter) || input.key_pressed(egui::Key::Space)
+        }) {
+            game.app.input(DesktopInputEvent::Confirm);
+        }
+        if ui.input(|input| input.key_pressed(egui::Key::Escape)) {
+            game.app.input(DesktopInputEvent::Cancel);
+        }
+        if ui.input(|input| input.key_pressed(egui::Key::ArrowDown)) {
+            game.app
+                .input(DesktopInputEvent::MoveSelection { delta: 1 });
+        }
+        if ui.input(|input| input.key_pressed(egui::Key::ArrowUp)) {
+            game.app
+                .input(DesktopInputEvent::MoveSelection { delta: -1 });
+        }
+
+        let frame = game.app.update(delta_ms.max(16));
+        let available = ui.available_size();
+        let desired = fit_size(egui::vec2(1280.0, 720.0), available);
+        let (rect, response) = ui.allocate_exact_size(desired, egui::Sense::click());
+        if response.clicked() {
+            game.app.input(DesktopInputEvent::Confirm);
+        }
+
+        render_frame(ui.painter(), rect, &frame, &mut game.textures);
+        ui.ctx().request_repaint();
     }
 }
 
@@ -344,7 +488,100 @@ fn asset_type_from_path(path: &str) -> AssetType {
     }
 }
 
+fn asset_id_from_path(path: &str) -> String {
+    Path::new(path)
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or(path)
+        .to_owned()
+}
+
 fn fit_size(size: egui::Vec2, bounds: egui::Vec2) -> egui::Vec2 {
     let scale = (bounds.x / size.x).min(bounds.y / size.y).min(1.0);
     size * scale.max(0.01)
+}
+
+fn render_frame(
+    painter: &egui::Painter,
+    bounds: egui::Rect,
+    frame: &DesktopFrame,
+    textures: &mut HashMap<String, egui::TextureHandle>,
+) {
+    painter.rect_filled(bounds, 0.0, color32(frame.clear_color, 1.0));
+
+    for texture in &frame.textures {
+        textures.entry(texture.id.clone()).or_insert_with(|| {
+            let image = egui::ColorImage::from_rgba_unmultiplied(
+                [texture.width as usize, texture.height as usize],
+                &texture.rgba,
+            );
+            painter
+                .ctx()
+                .load_texture(texture.id.clone(), image, Default::default())
+        });
+    }
+
+    let mut sprites = frame.sprites.iter().collect::<Vec<_>>();
+    sprites.sort_by_key(|sprite| sprite.z_index);
+    for sprite in sprites {
+        paint_sprite(painter, bounds, sprite, textures);
+    }
+
+    let mut texts = frame.texts.iter().collect::<Vec<_>>();
+    texts.sort_by_key(|text| text.z_index);
+    for text in texts {
+        paint_text(painter, bounds, text);
+    }
+}
+
+fn paint_sprite(
+    painter: &egui::Painter,
+    bounds: egui::Rect,
+    sprite: &FrameSprite,
+    textures: &HashMap<String, egui::TextureHandle>,
+) {
+    let rect = map_rect(bounds, sprite.bounds);
+    let tint = color32(sprite.tint, sprite.opacity);
+    if let Some(texture) = textures.get(&sprite.texture_id) {
+        painter.image(
+            texture.id(),
+            rect,
+            egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+            tint,
+        );
+    } else {
+        painter.rect_filled(rect, 4.0, tint);
+    }
+}
+
+fn paint_text(painter: &egui::Painter, bounds: egui::Rect, text: &FrameText) {
+    let rect = map_rect(bounds, text.bounds);
+    painter.text(
+        rect.min,
+        egui::Align2::LEFT_TOP,
+        &text.content,
+        egui::FontId::proportional(20.0),
+        color32(text.color, 1.0),
+    );
+}
+
+fn map_rect(bounds: egui::Rect, rect: suzu_core::Rect) -> egui::Rect {
+    let scale_x = bounds.width() / 1280.0;
+    let scale_y = bounds.height() / 720.0;
+    egui::Rect::from_min_size(
+        egui::pos2(
+            bounds.left() + rect.origin.x * scale_x,
+            bounds.top() + rect.origin.y * scale_y,
+        ),
+        egui::vec2(rect.size.x * scale_x, rect.size.y * scale_y),
+    )
+}
+
+fn color32(color: suzu_core::Color, opacity: f32) -> egui::Color32 {
+    egui::Color32::from_rgba_unmultiplied(
+        (color.r.clamp(0.0, 1.0) * 255.0) as u8,
+        (color.g.clamp(0.0, 1.0) * 255.0) as u8,
+        (color.b.clamp(0.0, 1.0) * 255.0) as u8,
+        ((color.a * opacity).clamp(0.0, 1.0) * 255.0) as u8,
+    )
 }

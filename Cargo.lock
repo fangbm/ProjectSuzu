@@ -3808,7 +3808,10 @@ version = "0.1.3"
 dependencies = [
  "anyhow",
  "eframe",
+ "suzu-app",
  "suzu-asset",
+ "suzu-core",
+ "suzu-platform",
 ]
 
 [[package]]

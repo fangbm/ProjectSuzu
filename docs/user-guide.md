@@ -95,7 +95,7 @@ app.register_xp3_file_with_options(
 
 Special KRKR/game-specific schemes can implement `Xp3CryptScheme` and pass it through `Xp3Decryptor::Custom`. These schemes differ by game or plugin, so Project Suzu provides the hook rather than pretending there is one universal KRKR decryption rule.
 
-For manual testing, run `suzu-xp3-viewer` with an XP3 path. It lists indexed entries, marks encrypted entries, previews decoded image assets, and previews UTF-8 script/text files. The viewer also exposes a simple XOR segment decrypt option for test archives.
+For manual testing, run `suzu-xp3-viewer` with an XP3 path. It lists indexed entries, marks encrypted entries, previews decoded image assets, and previews UTF-8 script/text files. Select a `.szs` script entry and press Start Game to register the XP3, load the script, and run an embedded game preview. The viewer also exposes a simple XOR segment decrypt option for test archives.
 
 ## Title Screen
 
