@@ -18,6 +18,7 @@ members = [
     "tools/suzu-compiler",
     "tools/suzu-bench",
     "tools/suzu-editor",
+    "tools/suzu-launcher",
     "tools/suzu-xp3-viewer",
 ]
 resolver = "2"

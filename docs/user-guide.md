@@ -38,6 +38,12 @@ Launch the first visual script editor MVP:
 cargo run -p suzu-editor
 ```
 
+Launch the unified project entry app:
+
+```powershell
+cargo run -p suzu-launcher
+```
+
 Inspect and preview a KiriKiri XP3 archive:
 
 ```powershell
@@ -56,6 +62,7 @@ cargo run -p suzu-xp3-viewer -- D:\game\data.xp3
 - `crates/suzu-input`: keyboard, mouse, wheel, and selection trigger maps.
 - `crates/suzu-platform`: desktop `winit`/`wgpu` integration and platform configuration types.
 - `crates/suzu-editor-core`: visual script editor document model, import/export, graph diagnostics, project scan, and undo commands.
+- `tools/suzu-launcher`: unified desktop entry app for opening Suzu projects, importing XP3 archives, and running previews.
 - `tools/suzu-xp3-viewer`: desktop XP3 inspection and image/text preview tool.
 
 ## Runtime Flow

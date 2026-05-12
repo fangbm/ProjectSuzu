@@ -26,6 +26,7 @@ $binaries = @(
     "suzu-packer",
     "suzu-bench",
     "suzu-editor",
+    "suzu-launcher",
     "suzu-xp3-viewer",
     "suzu-hello-world",
     "suzu-branching-story",

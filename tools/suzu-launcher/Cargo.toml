@@ -1,0 +1,15 @@
+[package]
+name = "suzu-launcher"
+version = "0.1.3"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+eframe.workspace = true
+suzu-app.workspace = true
+suzu-asset.workspace = true
+suzu-core.workspace = true
+suzu-editor-core.workspace = true
+suzu-platform.workspace = true
