@@ -131,7 +131,7 @@ impl Xp3Archive {
 fn parse_xp3_entries(bytes: &[u8], options: &Xp3Options) -> Result<Vec<Xp3Entry>> {
     let base_offset = find_xp3_header(bytes).context("XP3 header not found")?;
     let index_offset = resolve_index_offset(bytes, base_offset)?;
-    let index = read_index(bytes, index_offset)?;
+    let index = read_index_chain(bytes, base_offset, index_offset)?;
     parse_index(&index, base_offset as u64, options)
 }
 
@@ -143,24 +143,46 @@ fn find_xp3_header(bytes: &[u8]) -> Option<usize> {
 
 fn resolve_index_offset(bytes: &[u8], base_offset: usize) -> Result<usize> {
     let index_pointer = base_offset + XP3_MAGIC.len();
-    let mut index_offset = base_offset + read_u64_at(bytes, index_pointer)? as usize;
+    let index_offset = base_offset + read_u64_at(bytes, index_pointer)? as usize;
     if index_offset >= bytes.len() {
         bail!("XP3 index offset exceeds archive size");
-    }
-
-    if bytes.get(index_offset) == Some(&0x80) {
-        index_offset = base_offset + read_u64_at(bytes, index_offset + 9)? as usize;
-        if index_offset >= bytes.len() {
-            bail!("extended XP3 index offset exceeds archive size");
-        }
     }
 
     Ok(index_offset)
 }
 
-fn read_index(bytes: &[u8], offset: usize) -> Result<Vec<u8>> {
+fn read_index_chain(bytes: &[u8], base_offset: usize, mut offset: usize) -> Result<Vec<u8>> {
+    let mut index = Vec::new();
+    let mut seen_offsets = Vec::new();
+
+    loop {
+        if seen_offsets.contains(&offset) {
+            bail!("XP3 index chain contains a loop");
+        }
+        seen_offsets.push(offset);
+
+        let (mut chunk, next_offset) = read_index_chunk(bytes, offset)?;
+        index.append(&mut chunk);
+
+        let Some(next_offset) = next_offset else {
+            break;
+        };
+        offset = base_offset
+            .checked_add(next_offset as usize)
+            .context("XP3 chained index offset overflow")?;
+        if offset >= bytes.len() {
+            bail!("XP3 chained index offset exceeds archive size");
+        }
+    }
+
+    Ok(index)
+}
+
+fn read_index_chunk(bytes: &[u8], offset: usize) -> Result<(Vec<u8>, Option<u64>)> {
     let kind = *bytes.get(offset).context("XP3 index kind is missing")?;
-    match kind {
+    let has_next = kind & 0x80 != 0;
+    let kind = kind & 0x7f;
+    let (index, next_pointer_offset) = match kind {
         INDEX_KIND_RAW => {
             let size = read_u64_at(bytes, offset + 1)? as usize;
             let start = offset + 9;
@@ -170,7 +192,7 @@ fn read_index(bytes: &[u8], offset: usize) -> Result<Vec<u8>> {
             if end > bytes.len() {
                 bail!("XP3 raw index exceeds archive size");
             }
-            Ok(bytes[start..end].to_vec())
+            (bytes[start..end].to_vec(), end)
         }
         INDEX_KIND_ZLIB => {
             let packed_size = read_u64_at(bytes, offset + 1)? as usize;
@@ -190,10 +212,15 @@ fn read_index(bytes: &[u8], offset: usize) -> Result<Vec<u8>> {
             if decoded.len() != unpacked_size {
                 bail!("XP3 index unpacked size mismatch");
             }
-            Ok(decoded)
+            (decoded, end)
         }
         _ => bail!("unsupported XP3 index kind {kind}"),
-    }
+    };
+
+    let next_offset = has_next
+        .then(|| read_u64_at(bytes, next_pointer_offset))
+        .transpose()?;
+    Ok((index, next_offset))
 }
 
 fn parse_index(index: &[u8], base_offset: u64, options: &Xp3Options) -> Result<Vec<Xp3Entry>> {
@@ -487,6 +514,24 @@ mod tests {
         let _ = fs::remove_dir_all(root);
     }
 
+    #[test]
+    fn xp3_reads_chained_index() {
+        let root = test_dir("suzu-xp3-chained");
+        fs::create_dir_all(&root).unwrap();
+        let path = root.join("chained.xp3");
+        write_test_xp3_with_chained_index(&path, "main/start.ks", b"chain payload");
+
+        let archive = Xp3Archive::from_file(&path).unwrap();
+
+        assert_eq!(archive.entries().len(), 2);
+        assert_eq!(
+            archive.read_file("main/start.ks").unwrap(),
+            b"chain payload"
+        );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
     fn write_test_xp3(
         path: &Path,
         name: &str,
@@ -527,6 +572,28 @@ mod tests {
             bytes.extend_from_slice(&(index.len() as u64).to_le_bytes());
         }
         bytes.extend_from_slice(&packed_index);
+        fs::write(path, bytes).unwrap();
+    }
+
+    fn write_test_xp3_with_chained_index(path: &Path, name: &str, data: &[u8]) {
+        let segment_offset = XP3_HEADER_LEN as u64;
+        let index_offset = segment_offset + data.len() as u64;
+        let warning_index = build_index("warning.txt", 7, b"warning", segment_offset, false);
+        let main_index_offset = index_offset + 9 + warning_index.len() as u64 + 8;
+        let main_index = build_index(name, data.len() as u64, data, segment_offset, false);
+        let packed_main_index = zlib(&main_index);
+
+        let mut bytes = XP3_MAGIC.to_vec();
+        bytes.extend_from_slice(&index_offset.to_le_bytes());
+        bytes.extend_from_slice(data);
+        bytes.push(0x80 | INDEX_KIND_RAW);
+        bytes.extend_from_slice(&(warning_index.len() as u64).to_le_bytes());
+        bytes.extend_from_slice(&warning_index);
+        bytes.extend_from_slice(&main_index_offset.to_le_bytes());
+        bytes.push(INDEX_KIND_ZLIB);
+        bytes.extend_from_slice(&(packed_main_index.len() as u64).to_le_bytes());
+        bytes.extend_from_slice(&(main_index.len() as u64).to_le_bytes());
+        bytes.extend_from_slice(&packed_main_index);
         fs::write(path, bytes).unwrap();
     }
 
