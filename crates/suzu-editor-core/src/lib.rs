@@ -3,6 +3,7 @@ pub mod document;
 pub mod export;
 pub mod graph;
 pub mod import;
+pub mod krkr;
 pub mod project;
 pub mod undo;
 
@@ -15,4 +16,5 @@ pub use document::{
 pub use export::export_szs;
 pub use graph::analyze_graph;
 pub use import::import_szs;
+pub use krkr::{convert_krkr_ks_to_szs, KrkrConversion, KrkrConversionReport};
 pub use project::{ProjectIndex, ProjectResource, ResourceKind};

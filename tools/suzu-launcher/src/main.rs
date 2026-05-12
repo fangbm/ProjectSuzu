@@ -8,9 +8,10 @@ use std::{
 };
 
 use eframe::egui;
+use encoding_rs::{SHIFT_JIS, UTF_16BE, UTF_16LE};
 use suzu_app::{GameConfig, SuzuApp, TitleScreenConfig};
 use suzu_asset::{AssetType, Xp3Archive, Xp3Decryptor, Xp3Entry, Xp3Options};
-use suzu_editor_core::ProjectIndex;
+use suzu_editor_core::{convert_krkr_ks_to_szs, ProjectIndex};
 use suzu_platform::{DesktopApp, DesktopFrame, DesktopInputEvent, FrameSprite, FrameText};
 
 fn main() -> eframe::Result<()> {
@@ -36,6 +37,7 @@ struct LauncherApp {
     selected_project_script: Option<usize>,
     xp3_path: String,
     krkr_path: String,
+    krkr_output_path: String,
     krkr_report: Option<KrkrPackageReport>,
     xor_enabled: bool,
     xor_key: String,
@@ -89,6 +91,7 @@ impl LauncherApp {
             selected_project_script: None,
             xp3_path: String::new(),
             krkr_path: String::new(),
+            krkr_output_path: String::new(),
             krkr_report: None,
             xor_enabled: false,
             xor_key: "5A".to_owned(),
@@ -108,6 +111,7 @@ impl LauncherApp {
             } else {
                 app.project_path = initial.display().to_string();
                 app.krkr_path = initial.display().to_string();
+                app.krkr_output_path = default_krkr_output_path(&initial).display().to_string();
                 app.scan_project();
             }
         }
@@ -173,6 +177,17 @@ impl LauncherApp {
 
     fn scan_krkr_package(&mut self) {
         let root = PathBuf::from(clean_path_input(&self.krkr_path));
+        if self.krkr_output_path.trim().is_empty() {
+            self.krkr_output_path = default_krkr_output_path(&root).display().to_string();
+        }
+        let options = match self.xp3_options() {
+            Ok(options) => options,
+            Err(error) => {
+                self.krkr_report = None;
+                self.status = error;
+                return;
+            }
+        };
         let mut archives = Vec::new();
         let mut total_entries = 0;
         let mut total_scripts = 0;
@@ -198,7 +213,7 @@ impl LauncherApp {
             }
 
             let bytes = entry.metadata().map(|meta| meta.len()).unwrap_or_default();
-            let summary = match Xp3Archive::from_file(&path) {
+            let summary = match Xp3Archive::from_file_with_options(&path, options.clone()) {
                 Ok(archive) => {
                     let rows = archive
                         .entries()
@@ -254,6 +269,102 @@ impl LauncherApp {
             total_scripts,
             encrypted_scripts,
         });
+    }
+
+    fn convert_first_readable_krkr_script(&mut self) {
+        if self.krkr_report.is_none() {
+            self.scan_krkr_package();
+        }
+        let options = match self.xp3_options() {
+            Ok(options) => options,
+            Err(error) => {
+                self.status = error;
+                return;
+            }
+        };
+
+        let Some(report) = &self.krkr_report else {
+            return;
+        };
+        let output_root = PathBuf::from(clean_path_input(&self.krkr_output_path));
+        if output_root.as_os_str().is_empty() {
+            self.status = "Enter an output folder for the converted Suzu project.".to_owned();
+            return;
+        }
+
+        let mut selected: Option<(PathBuf, String)> = None;
+        for archive in &report.archives {
+            if archive.error.is_some() {
+                continue;
+            }
+            let Ok(xp3) = Xp3Archive::from_file_with_options(&archive.path, options.clone()) else {
+                continue;
+            };
+            let mut scripts = xp3
+                .entries()
+                .iter()
+                .filter(|entry| {
+                    (!entry.encrypted || self.xor_enabled) && script_extension_is(&entry.name, "ks")
+                })
+                .collect::<Vec<_>>();
+            scripts.sort_by_key(|entry| {
+                (
+                    !krkr_entry_looks_like_entrypoint(&entry.name),
+                    entry.name.to_ascii_lowercase(),
+                )
+            });
+            if let Some(entry) = scripts.first() {
+                selected = Some((archive.path.clone(), entry.name.clone()));
+                break;
+            }
+        }
+
+        let Some((archive_path, entry_name)) = selected else {
+            self.status = if self.xor_enabled {
+                "No .ks script found with the current XOR settings.".to_owned()
+            } else {
+                "No plain .ks script found. Enable XOR if this package uses XOR-encrypted scripts."
+                    .to_owned()
+            };
+            return;
+        };
+
+        let archive = match Xp3Archive::from_file_with_options(&archive_path, options) {
+            Ok(archive) => archive,
+            Err(error) => {
+                self.status = format!("Failed to reopen XP3 for conversion: {error:#}");
+                return;
+            }
+        };
+        let bytes = match archive.read_file(&entry_name) {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                self.status = format!("Failed to read KRKR script: {error:#}");
+                return;
+            }
+        };
+        let source = decode_krkr_text(&bytes);
+        let converted = convert_krkr_ks_to_szs(&source, Some(&entry_name));
+        let script_dir = output_root.join("script");
+        let script_path = script_dir.join("main.szs");
+        if let Err(error) = fs::create_dir_all(&script_dir) {
+            self.status = format!("Failed to create output folder: {error}");
+            return;
+        }
+        if let Err(error) = fs::write(&script_path, converted.source) {
+            self.status = format!("Failed to write converted script: {error}");
+            return;
+        }
+
+        self.project_path = output_root.display().to_string();
+        self.scan_project();
+        self.status = format!(
+            "Converted `{entry_name}` -> {} ({} lines, {} commands, {} choices).",
+            script_path.display(),
+            converted.report.lines_read,
+            converted.report.commands_converted,
+            converted.report.choices
+        );
     }
 
     fn xp3_options(&self) -> Result<Xp3Options, String> {
@@ -507,13 +618,30 @@ impl LauncherApp {
                     }
                 });
             if report.encrypted_scripts > 0 {
-                ui.colored_label(
-                    egui::Color32::from_rgb(190, 92, 32),
-                    "KRKR scripts are encrypted; add a game-specific decryptor before conversion.",
-                );
+                if self.xor_enabled {
+                    ui.colored_label(
+                        egui::Color32::from_rgb(64, 128, 64),
+                        "XOR decryptor is enabled for KRKR scan and conversion.",
+                    );
+                } else {
+                    ui.colored_label(
+                        egui::Color32::from_rgb(190, 92, 32),
+                        "KRKR scripts are encrypted; enable XOR or add a game-specific decryptor before conversion.",
+                    );
+                }
             }
         } else {
             ui.label("Paste a KRKR game folder or drop it into the launcher.");
+        }
+        ui.horizontal(|ui| {
+            ui.label("Output");
+            ui.text_edit_singleline(&mut self.krkr_output_path);
+        });
+        if ui
+            .button("Convert First Readable .ks to Suzu Project")
+            .clicked()
+        {
+            self.convert_first_readable_krkr_script();
         }
     }
 
@@ -665,6 +793,44 @@ fn krkr_entry_looks_like_entrypoint(path: &str) -> bool {
         || normalized.ends_with("/first.ks")
         || normalized.ends_with("/start.ks")
         || normalized.ends_with("/title.ks")
+}
+
+fn default_krkr_output_path(root: &Path) -> PathBuf {
+    let folder_name = root
+        .file_name()
+        .and_then(|name| name.to_str())
+        .filter(|name| !name.is_empty())
+        .map(|name| format!("{name}-suzu-migration"))
+        .unwrap_or_else(|| "suzu-migration".to_owned());
+    root.parent()
+        .map(|parent| parent.join(&folder_name))
+        .unwrap_or_else(|| root.join(folder_name))
+}
+
+fn script_extension_is(path: &str, extension: &str) -> bool {
+    Path::new(path)
+        .extension()
+        .and_then(|value| value.to_str())
+        .is_some_and(|value| value.eq_ignore_ascii_case(extension))
+}
+
+fn decode_krkr_text(bytes: &[u8]) -> String {
+    if let Some(rest) = bytes.strip_prefix(&[0xef, 0xbb, 0xbf]) {
+        return String::from_utf8_lossy(rest).into_owned();
+    }
+    if let Some(rest) = bytes.strip_prefix(&[0xff, 0xfe]) {
+        let (text, _, _) = UTF_16LE.decode(rest);
+        return text.into_owned();
+    }
+    if let Some(rest) = bytes.strip_prefix(&[0xfe, 0xff]) {
+        let (text, _, _) = UTF_16BE.decode(rest);
+        return text.into_owned();
+    }
+    if let Ok(text) = std::str::from_utf8(bytes) {
+        return text.to_owned();
+    }
+    let (text, _, _) = SHIFT_JIS.decode(bytes);
+    text.into_owned()
 }
 
 fn xp3_path_from_input(input: &str) -> Result<PathBuf, String> {

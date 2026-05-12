@@ -11,6 +11,7 @@ winresource.workspace = true
 [dependencies]
 anyhow.workspace = true
 eframe.workspace = true
+encoding_rs.workspace = true
 suzu-app.workspace = true
 suzu-asset.workspace = true
 suzu-core.workspace = true
