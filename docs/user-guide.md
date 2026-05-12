@@ -38,6 +38,12 @@ Launch the first visual script editor MVP:
 cargo run -p suzu-editor
 ```
 
+Inspect and preview a KiriKiri XP3 archive:
+
+```powershell
+cargo run -p suzu-xp3-viewer -- D:\game\data.xp3
+```
+
 ## Project Layout
 
 - `crates/suzu-app`: high-level visual novel app facade.
@@ -50,6 +56,7 @@ cargo run -p suzu-editor
 - `crates/suzu-input`: keyboard, mouse, wheel, and selection trigger maps.
 - `crates/suzu-platform`: desktop `winit`/`wgpu` integration and platform configuration types.
 - `crates/suzu-editor-core`: visual script editor document model, import/export, graph diagnostics, project scan, and undo commands.
+- `tools/suzu-xp3-viewer`: desktop XP3 inspection and image/text preview tool.
 
 ## Runtime Flow
 
@@ -87,6 +94,8 @@ app.register_xp3_file_with_options(
 ```
 
 Special KRKR/game-specific schemes can implement `Xp3CryptScheme` and pass it through `Xp3Decryptor::Custom`. These schemes differ by game or plugin, so Project Suzu provides the hook rather than pretending there is one universal KRKR decryption rule.
+
+For manual testing, run `suzu-xp3-viewer` with an XP3 path. It lists indexed entries, marks encrypted entries, previews decoded image assets, and previews UTF-8 script/text files. The viewer also exposes a simple XOR segment decrypt option for test archives.
 
 ## Title Screen
 

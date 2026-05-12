@@ -43,6 +43,7 @@ jobs:
           Copy-Item "target/release/suzu-packer${{ matrix.exe }}" "dist/suzu-packer${{ matrix.exe }}"
           Copy-Item "target/release/suzu-bench${{ matrix.exe }}" "dist/suzu-bench${{ matrix.exe }}"
           Copy-Item "target/release/suzu-editor${{ matrix.exe }}" "dist/suzu-editor${{ matrix.exe }}"
+          Copy-Item "target/release/suzu-xp3-viewer${{ matrix.exe }}" "dist/suzu-xp3-viewer${{ matrix.exe }}"
           Copy-Item "target/release/suzu-hello-world${{ matrix.exe }}" "dist/suzu-hello-world${{ matrix.exe }}"
           Copy-Item "target/release/suzu-branching-story${{ matrix.exe }}" "dist/suzu-branching-story${{ matrix.exe }}"
           Copy-Item "target/release/suzu-ui-save-load-demo${{ matrix.exe }}" "dist/suzu-ui-save-load-demo${{ matrix.exe }}"

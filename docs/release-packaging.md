@@ -10,7 +10,7 @@ Run:
 .\scripts\package-desktop.ps1
 ```
 
-The script builds the workspace, copies example binaries and desktop tools including `suzu-editor`, includes user documentation, packs hello-world assets into `.suzupack`, writes a JSON manifest, and creates `dist/project-suzu-desktop.zip`.
+The script builds the workspace, copies example binaries and desktop tools including `suzu-editor` and `suzu-xp3-viewer`, includes user documentation, packs hello-world assets into `.suzupack`, writes a JSON manifest, and creates `dist/project-suzu-desktop.zip`.
 The package also includes the Project Suzu icon, `CONTRIBUTING.md`, `SECURITY.md`, `LICENSE-MIT`, `LICENSE-APACHE`, and `CHANGELOG.md`.
 
 Check package inputs without building:
