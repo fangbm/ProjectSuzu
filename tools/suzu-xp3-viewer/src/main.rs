@@ -2,6 +2,7 @@
 
 use std::{
     collections::HashMap,
+    fs,
     path::{Path, PathBuf},
     time::Instant,
 };
@@ -83,6 +84,7 @@ struct GamePreview {
 
 impl Xp3ViewerApp {
     fn new(cc: &eframe::CreationContext<'_>, initial_path: String) -> Self {
+        install_cjk_fonts(&cc.egui_ctx);
         let mut app = Self {
             xp3_path: initial_path,
             xor_enabled: false,
@@ -436,6 +438,51 @@ impl Xp3ViewerApp {
         render_frame(ui.painter(), rect, &frame, &mut game.textures);
         ui.ctx().request_repaint();
     }
+}
+
+fn install_cjk_fonts(ctx: &egui::Context) {
+    let Some((name, bytes)) = load_cjk_font() else {
+        return;
+    };
+
+    let mut fonts = egui::FontDefinitions::default();
+    fonts
+        .font_data
+        .insert(name.clone(), egui::FontData::from_owned(bytes));
+
+    for family in [egui::FontFamily::Proportional, egui::FontFamily::Monospace] {
+        fonts
+            .families
+            .entry(family)
+            .or_default()
+            .insert(0, name.clone());
+    }
+
+    ctx.set_fonts(fonts);
+}
+
+fn load_cjk_font() -> Option<(String, Vec<u8>)> {
+    for path in cjk_font_candidates() {
+        if let Ok(bytes) = fs::read(path) {
+            return Some((format!("cjk-{}", Path::new(path).display()), bytes));
+        }
+    }
+    None
+}
+
+fn cjk_font_candidates() -> &'static [&'static str] {
+    &[
+        r"C:\Windows\Fonts\msyh.ttc",
+        r"C:\Windows\Fonts\msyh.ttf",
+        r"C:\Windows\Fonts\meiryo.ttc",
+        r"C:\Windows\Fonts\YuGothM.ttc",
+        r"C:\Windows\Fonts\msgothic.ttc",
+        "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
+        "/System/Library/Fonts/PingFang.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+    ]
 }
 
 impl eframe::App for Xp3ViewerApp {
