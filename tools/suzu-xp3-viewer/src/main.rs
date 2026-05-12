@@ -101,7 +101,14 @@ impl Xp3ViewerApp {
     }
 
     fn load_archive(&mut self, ctx: &egui::Context) {
-        let path = PathBuf::from(self.xp3_path.trim());
+        let path = match xp3_path_from_input(&self.xp3_path) {
+            Ok(path) => path,
+            Err(error) => {
+                self.status = error;
+                return;
+            }
+        };
+        self.xp3_path = path.display().to_string();
         let options = match self.xp3_options() {
             Ok(options) => options,
             Err(error) => {
@@ -177,7 +184,13 @@ impl Xp3ViewerApp {
     }
 
     fn start_game(&mut self) {
-        let path = PathBuf::from(self.xp3_path.trim());
+        let path = match xp3_path_from_input(&self.xp3_path) {
+            Ok(path) => path,
+            Err(error) => {
+                self.status = error;
+                return;
+            }
+        };
         let Some(script_id) = self.selected_script_id() else {
             self.status =
                 "No script entry found. Select a .szs script or add one to the XP3.".to_owned();
@@ -241,6 +254,26 @@ impl Xp3ViewerApp {
                     .find(|row| row.kind == AssetType::Script)
             })
             .map(|row| asset_id_from_path(&row.name))
+    }
+
+    fn load_dropped_xp3(&mut self, ctx: &egui::Context) {
+        let dropped_path = ctx.input(|input| {
+            input
+                .raw
+                .dropped_files
+                .iter()
+                .filter_map(|file| file.path.clone())
+                .find(|path| {
+                    path.extension()
+                        .and_then(|extension| extension.to_str())
+                        .is_some_and(|extension| extension.eq_ignore_ascii_case("xp3"))
+                })
+        });
+
+        if let Some(path) = dropped_path {
+            self.xp3_path = path.display().to_string();
+            self.load_archive(ctx);
+        }
     }
 
     fn top_bar(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
@@ -407,6 +440,7 @@ impl Xp3ViewerApp {
 
 impl eframe::App for Xp3ViewerApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.load_dropped_xp3(ctx);
         egui::TopBottomPanel::top("top").show(ctx, |ui| self.top_bar(ui, ctx));
         egui::SidePanel::left("entries")
             .resizable(true)
@@ -494,6 +528,34 @@ fn asset_id_from_path(path: &str) -> String {
         .and_then(|stem| stem.to_str())
         .unwrap_or(path)
         .to_owned()
+}
+
+fn xp3_path_from_input(input: &str) -> Result<PathBuf, String> {
+    let cleaned = clean_path_input(input);
+    if cleaned.is_empty() {
+        return Err("Enter an XP3 path first.".to_owned());
+    }
+
+    let path = PathBuf::from(cleaned);
+    if path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("xp3"))
+    {
+        Ok(path)
+    } else {
+        Err("The selected file is not an .xp3 archive.".to_owned())
+    }
+}
+
+fn clean_path_input(input: &str) -> String {
+    let mut value = input.trim().trim_matches(['"', '\'']).trim().to_owned();
+    if let Some(rest) = value.strip_prefix("file:///") {
+        value = rest.replace('/', "\\");
+    } else if let Some(rest) = value.strip_prefix("file://") {
+        value = rest.replace('/', "\\");
+    }
+    value
 }
 
 fn fit_size(size: egui::Vec2, bounds: egui::Vec2) -> egui::Vec2 {
@@ -584,4 +646,30 @@ fn color32(color: suzu_core::Color, opacity: f32) -> egui::Color32 {
         (color.b.clamp(0.0, 1.0) * 255.0) as u8,
         ((color.a * opacity).clamp(0.0, 1.0) * 255.0) as u8,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cleans_quoted_windows_xp3_path() {
+        assert_eq!(
+            clean_path_input(r#""D:\games\Suzu\data.xp3""#),
+            r"D:\games\Suzu\data.xp3"
+        );
+    }
+
+    #[test]
+    fn cleans_file_url_xp3_path() {
+        assert_eq!(
+            clean_path_input("file:///D:/games/Suzu/data.xp3"),
+            r"D:\games\Suzu\data.xp3"
+        );
+    }
+
+    #[test]
+    fn rejects_non_xp3_path() {
+        assert!(xp3_path_from_input(r"D:\games\Suzu\data.zip").is_err());
+    }
 }
