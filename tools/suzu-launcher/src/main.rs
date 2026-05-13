@@ -90,7 +90,7 @@ fn run_krkr_probe_cli(args: &[OsString]) -> anyhow::Result<()> {
         bail!("usage: suzu-launcher --krkr-probe <krkr-folder>");
     };
     let report = probe_krkr_directory(PathBuf::from(root))?;
-    if let Some(packinone) = report.packinone {
+    if let Some(packinone) = &report.packinone {
         println!("PackinOne: {}", packinone.dll_path.display());
         println!("  chacha_filter: {}", packinone.uses_chacha_filter);
         println!("  loadDataPack: {}", packinone.exposes_load_data_pack);
@@ -100,12 +100,44 @@ fn run_krkr_probe_cli(args: &[OsString]) -> anyhow::Result<()> {
     } else {
         println!("PackinOne: not detected");
     }
-    if let Some(emote) = report.lose_emote_psb {
+    if let Some(emote) = &report.lose_emote_psb {
         println!(
             "Lose Emote PSB: seed {} ({})",
             emote.randomizer_seed,
             emote.dll_path.display()
         );
+    }
+    println!(
+        "KRKR archives: {} archives, {} script-like entries, {} encrypted script-like entries",
+        report.archives.len(),
+        report.script_entries(),
+        report.encrypted_script_entries()
+    );
+    if report.has_packinone_blocker() {
+        println!(
+            "Compatibility: blocked by PackinOne encrypted script storage; a PackinOne decryptor is required before direct Suzu playback."
+        );
+    }
+    for archive in &report.archives {
+        let name = archive
+            .path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("<xp3>");
+        if let Some(error) = &archive.parse_error {
+            println!("  {name}: parse error: {error}");
+            continue;
+        }
+        println!(
+            "  {name}: {} entries, {} script-like, {} encrypted",
+            archive.entries, archive.script_entries, archive.encrypted_script_entries
+        );
+        if !archive.entrypoint_candidates.is_empty() {
+            println!(
+                "    entrypoint candidates: {}",
+                archive.entrypoint_candidates.join(", ")
+            );
+        }
     }
     Ok(())
 }
@@ -274,8 +306,11 @@ fn convert_krkr_package_to_suzu_project(
             .and_then(|report| report.packinone.as_ref())
             .is_some()
     {
+        let encrypted_scripts = compatibility
+            .as_ref()
+            .map_or(0, KrkrCompatibilityReport::encrypted_script_entries);
         bail!(
-            "decoded KRKR scripts contain no KAG commands; PackinOne/ChaCha storage protection is detected and must be implemented before conversion"
+            "decoded KRKR scripts contain no KAG commands; PackinOne/ChaCha storage protection is detected ({encrypted_scripts} encrypted script-like entries). Run `suzu-launcher --krkr-probe <folder>` for details."
         );
     }
 
@@ -834,6 +869,15 @@ impl LauncherApp {
                         emote.randomizer_seed
                     ));
                 }
+                if compatibility.has_packinone_blocker() {
+                    ui.colored_label(
+                        egui::Color32::from_rgb(210, 72, 72),
+                        format!(
+                            "Direct playback blocked: PackinOne protects {} script-like entries.",
+                            compatibility.encrypted_script_entries()
+                        ),
+                    );
+                }
             }
             egui::ScrollArea::vertical()
                 .max_height(190.0)
@@ -864,7 +908,16 @@ impl LauncherApp {
                     }
                 });
             if report.encrypted_scripts > 0 {
-                if self.xor_enabled {
+                if self
+                    .krkr_compatibility
+                    .as_ref()
+                    .is_some_and(KrkrCompatibilityReport::has_packinone_blocker)
+                {
+                    ui.colored_label(
+                        egui::Color32::from_rgb(190, 92, 32),
+                        "KRKR scripts use PackinOne storage protection; XOR is not enough for this game.",
+                    );
+                } else if self.xor_enabled {
                     ui.colored_label(
                         egui::Color32::from_rgb(64, 128, 64),
                         "XOR decryptor is enabled for KRKR scan and conversion.",

@@ -8,7 +8,8 @@ pub mod xp3;
 
 pub use archive::{archive_magic, checksum64, PackageArchive};
 pub use krkr::{
-    probe_krkr_directory, KrkrCompatibilityReport, LoseEmotePsbReport, PackinOneReport,
+    probe_krkr_directory, KrkrArchiveReport, KrkrCompatibilityReport, LoseEmotePsbReport,
+    PackinOneReport,
 };
 pub use manager::{AssetManager, AsyncTextureLoad};
 pub use manifest::{AssetCompression, AssetManifestEntry, PackageManifest};
