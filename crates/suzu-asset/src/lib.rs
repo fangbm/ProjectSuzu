@@ -1,4 +1,5 @@
 pub mod archive;
+pub mod krkr;
 pub mod manager;
 pub mod manifest;
 pub mod texture;
@@ -6,6 +7,9 @@ pub mod types;
 pub mod xp3;
 
 pub use archive::{archive_magic, checksum64, PackageArchive};
+pub use krkr::{
+    probe_krkr_directory, KrkrCompatibilityReport, LoseEmotePsbReport, PackinOneReport,
+};
 pub use manager::{AssetManager, AsyncTextureLoad};
 pub use manifest::{AssetCompression, AssetManifestEntry, PackageManifest};
 pub use texture::TextureAsset;

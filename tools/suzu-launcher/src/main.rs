@@ -12,7 +12,10 @@ use anyhow::{bail, Context};
 use eframe::egui;
 use encoding_rs::{SHIFT_JIS, UTF_16BE, UTF_16LE};
 use suzu_app::{GameConfig, SuzuApp, TitleScreenConfig};
-use suzu_asset::{AssetType, Xp3Archive, Xp3Decryptor, Xp3Entry, Xp3Options};
+use suzu_asset::{
+    probe_krkr_directory, AssetType, KrkrCompatibilityReport, Xp3Archive, Xp3Decryptor, Xp3Entry,
+    Xp3Options,
+};
 use suzu_editor_core::{convert_krkr_ks_to_szs, ProjectIndex};
 use suzu_platform::{DesktopApp, DesktopFrame, DesktopInputEvent, FrameSprite, FrameText};
 use suzu_script::CURRENT_SCRIPT_FORMAT_VERSION;
@@ -26,6 +29,16 @@ fn main() -> eframe::Result<()> {
     {
         if let Err(error) = run_krkr2suzu_cli(&args[1..]) {
             eprintln!("krkr2suzu failed: {error:#}");
+        }
+        return Ok(());
+    }
+    if args
+        .first()
+        .and_then(|arg| arg.to_str())
+        .is_some_and(|arg| arg == "--krkr-probe")
+    {
+        if let Err(error) = run_krkr_probe_cli(&args[1..]) {
+            eprintln!("krkr-probe failed: {error:#}");
         }
         return Ok(());
     }
@@ -72,6 +85,31 @@ fn run_krkr2suzu_cli(args: &[OsString]) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn run_krkr_probe_cli(args: &[OsString]) -> anyhow::Result<()> {
+    let Some(root) = args.first() else {
+        bail!("usage: suzu-launcher --krkr-probe <krkr-folder>");
+    };
+    let report = probe_krkr_directory(PathBuf::from(root))?;
+    if let Some(packinone) = report.packinone {
+        println!("PackinOne: {}", packinone.dll_path.display());
+        println!("  chacha_filter: {}", packinone.uses_chacha_filter);
+        println!("  loadDataPack: {}", packinone.exposes_load_data_pack);
+        println!("  PackinOneList: {}", packinone.exposes_packinone_list);
+        println!("  cryptmode: {}", packinone.exposes_cryptmode);
+        println!("  outeriv: {}", packinone.exposes_outeriv);
+    } else {
+        println!("PackinOne: not detected");
+    }
+    if let Some(emote) = report.lose_emote_psb {
+        println!(
+            "Lose Emote PSB: seed {} ({})",
+            emote.randomizer_seed,
+            emote.dll_path.display()
+        );
+    }
+    Ok(())
+}
+
 #[derive(Debug, Clone)]
 struct KrkrConversionSummary {
     script_path: PathBuf,
@@ -87,6 +125,7 @@ fn convert_krkr_package_to_suzu_project(
     output_root: &Path,
     option_candidates: &[Xp3Options],
 ) -> anyhow::Result<KrkrConversionSummary> {
+    let compatibility = probe_krkr_directory(root).ok();
     let script_dir = output_root.join("script");
     fs::create_dir_all(&script_dir)
         .with_context(|| format!("failed to create {}", script_dir.display()))?;
@@ -229,6 +268,17 @@ fn convert_krkr_package_to_suzu_project(
         }
     }
 
+    if total_commands == 0
+        && compatibility
+            .as_ref()
+            .and_then(|report| report.packinone.as_ref())
+            .is_some()
+    {
+        bail!(
+            "decoded KRKR scripts contain no KAG commands; PackinOne/ChaCha storage protection is detected and must be implemented before conversion"
+        );
+    }
+
     suzu_script::compile_script(&output).context("converted KRKR startup flow did not compile")?;
     let script_path = script_dir.join("main.szs");
     fs::write(&script_path, output)
@@ -252,6 +302,7 @@ struct LauncherApp {
     krkr_path: String,
     krkr_output_path: String,
     krkr_report: Option<KrkrPackageReport>,
+    krkr_compatibility: Option<KrkrCompatibilityReport>,
     xor_enabled: bool,
     xor_key: String,
     xp3_entries: Vec<EntryRow>,
@@ -306,6 +357,7 @@ impl LauncherApp {
             krkr_path: String::new(),
             krkr_output_path: String::new(),
             krkr_report: None,
+            krkr_compatibility: None,
             xor_enabled: false,
             xor_key: "5A".to_owned(),
             xp3_entries: Vec::new(),
@@ -397,6 +449,7 @@ impl LauncherApp {
             Ok(options) => options,
             Err(error) => {
                 self.krkr_report = None;
+                self.krkr_compatibility = None;
                 self.status = error;
                 return;
             }
@@ -410,10 +463,12 @@ impl LauncherApp {
             Ok(read_dir) => read_dir,
             Err(error) => {
                 self.krkr_report = None;
+                self.krkr_compatibility = None;
                 self.status = format!("Failed to scan KRKR folder: {error}");
                 return;
             }
         };
+        self.krkr_compatibility = probe_krkr_directory(&root).ok();
 
         for entry in read_dir.flatten() {
             let path = entry.path();
@@ -760,6 +815,26 @@ impl LauncherApp {
                 report.encrypted_scripts
             ));
             ui.label(format!("Root: {}", report.root.display()));
+            if let Some(compatibility) = &self.krkr_compatibility {
+                if let Some(packinone) = &compatibility.packinone {
+                    ui.colored_label(
+                        egui::Color32::from_rgb(190, 92, 32),
+                        format!(
+                            "PackinOne detected: ChaCha filter={} loadDataPack={} cryptmode={} outeriv={}",
+                            packinone.uses_chacha_filter,
+                            packinone.exposes_load_data_pack,
+                            packinone.exposes_cryptmode,
+                            packinone.exposes_outeriv
+                        ),
+                    );
+                }
+                if let Some(emote) = &compatibility.lose_emote_psb {
+                    ui.label(format!(
+                        "Lose Emote PSB seed detected: {}",
+                        emote.randomizer_seed
+                    ));
+                }
+            }
             egui::ScrollArea::vertical()
                 .max_height(190.0)
                 .show(ui, |ui| {
