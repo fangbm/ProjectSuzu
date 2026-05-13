@@ -275,7 +275,7 @@ impl LauncherApp {
         if self.krkr_report.is_none() {
             self.scan_krkr_package();
         }
-        let options = match self.xp3_options() {
+        let option_candidates = match self.xp3_option_candidates() {
             Ok(options) => options,
             Err(error) => {
                 self.status = error;
@@ -291,13 +291,20 @@ impl LauncherApp {
             self.status = "Enter an output folder for the converted Suzu project.".to_owned();
             return;
         }
+        let script_dir = output_root.join("script");
+        if let Err(error) = fs::create_dir_all(&script_dir) {
+            self.status = format!("Failed to create output folder: {error}");
+            return;
+        }
 
         let mut selected: Option<(PathBuf, String)> = None;
         for archive in &report.archives {
             if archive.error.is_some() {
                 continue;
             }
-            let Ok(xp3) = Xp3Archive::from_file_with_options(&archive.path, options.clone()) else {
+            let Ok(xp3) =
+                Xp3Archive::from_file_with_options(&archive.path, option_candidates[0].clone())
+            else {
                 continue;
             };
             let mut scripts = xp3
@@ -329,28 +336,31 @@ impl LauncherApp {
             return;
         };
 
-        let archive = match Xp3Archive::from_file_with_options(&archive_path, options) {
-            Ok(archive) => archive,
-            Err(error) => {
-                self.status = format!("Failed to reopen XP3 for conversion: {error:#}");
-                return;
+        let mut last_error = None::<String>;
+        let mut bytes = None;
+        for options in option_candidates {
+            match Xp3Archive::from_file_with_options(&archive_path, options)
+                .and_then(|archive| archive.read_file(&entry_name))
+            {
+                Ok(read) => {
+                    bytes = Some(read);
+                    break;
+                }
+                Err(error) => {
+                    last_error = Some(format!("{error:#}"));
+                }
             }
-        };
-        let bytes = match archive.read_file(&entry_name) {
-            Ok(bytes) => bytes,
-            Err(error) => {
-                self.status = format!("Failed to read KRKR script: {error:#}");
-                return;
-            }
+        }
+        let Some(bytes) = bytes else {
+            self.status = format!(
+                "Failed to read KRKR script with the current XOR modes: {}",
+                last_error.unwrap_or_else(|| "unknown error".to_owned())
+            );
+            return;
         };
         let source = decode_krkr_text(&bytes);
         let converted = convert_krkr_ks_to_szs(&source, Some(&entry_name));
-        let script_dir = output_root.join("script");
         let script_path = script_dir.join("main.szs");
-        if let Err(error) = fs::create_dir_all(&script_dir) {
-            self.status = format!("Failed to create output folder: {error}");
-            return;
-        }
         if let Err(error) = fs::write(&script_path, converted.source) {
             self.status = format!("Failed to write converted script: {error}");
             return;
@@ -371,13 +381,33 @@ impl LauncherApp {
         if !self.xor_enabled {
             return Ok(Xp3Options::default());
         }
-        let key_text = self.xor_key.trim().trim_start_matches("0x");
-        let key = u8::from_str_radix(key_text, 16)
-            .or_else(|_| self.xor_key.trim().parse::<u8>())
-            .map_err(|_| "XOR key must be a byte, for example 5A or 90.".to_owned())?;
         Ok(Xp3Options {
-            decryptor: Xp3Decryptor::Xor { key },
+            decryptor: Xp3Decryptor::Xor {
+                key: self.xor_key()?,
+            },
         })
+    }
+
+    fn xp3_option_candidates(&self) -> Result<Vec<Xp3Options>, String> {
+        if !self.xor_enabled {
+            return Ok(vec![Xp3Options::default()]);
+        }
+        let key = self.xor_key()?;
+        Ok(vec![
+            Xp3Options {
+                decryptor: Xp3Decryptor::Xor { key },
+            },
+            Xp3Options {
+                decryptor: Xp3Decryptor::XorAfterInflate { key },
+            },
+        ])
+    }
+
+    fn xor_key(&self) -> Result<u8, String> {
+        let key_text = self.xor_key.trim().trim_start_matches("0x");
+        u8::from_str_radix(key_text, 16)
+            .or_else(|_| self.xor_key.trim().parse::<u8>())
+            .map_err(|_| "XOR key must be a byte, for example 5A or 90.".to_owned())
     }
 
     fn start_project_script(&mut self) {
@@ -802,8 +832,13 @@ fn default_krkr_output_path(root: &Path) -> PathBuf {
         .filter(|name| !name.is_empty())
         .map(|name| format!("{name}-suzu-migration"))
         .unwrap_or_else(|| "suzu-migration".to_owned());
-    root.parent()
-        .map(|parent| parent.join(&folder_name))
+    std::env::var_os("USERPROFILE")
+        .map(PathBuf::from)
+        .map(|home| {
+            home.join("Documents")
+                .join("ProjectSuzu Migrations")
+                .join(&folder_name)
+        })
         .unwrap_or_else(|| root.join(folder_name))
 }
 

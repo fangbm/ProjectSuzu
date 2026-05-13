@@ -58,6 +58,9 @@ pub enum Xp3Decryptor {
     Xor {
         key: u8,
     },
+    XorAfterInflate {
+        key: u8,
+    },
     NameXor {
         key: u8,
     },
@@ -71,7 +74,7 @@ impl Xp3Decryptor {
         match self {
             Self::NameXor { key } => xor_bytes(bytes, *key),
             Self::Custom { scheme } => scheme.decrypt_name_bytes(bytes),
-            Self::None | Self::Xor { .. } => {}
+            Self::None | Self::Xor { .. } | Self::XorAfterInflate { .. } => {}
         }
     }
 
@@ -79,7 +82,7 @@ impl Xp3Decryptor {
         match self {
             Self::Xor { key } => xor_bytes(bytes, *key),
             Self::Custom { scheme } => scheme.decrypt_segment_bytes(bytes, entry, segment),
-            Self::None | Self::NameXor { .. } => {}
+            Self::None | Self::XorAfterInflate { .. } | Self::NameXor { .. } => {}
         }
     }
 }
@@ -347,11 +350,22 @@ fn read_entry_from_bytes(
             if output.len() - before != segment.original_size as usize {
                 bail!("XP3 segment unpacked size mismatch for `{}`", entry.name);
             }
+            if entry.encrypted {
+                if let Xp3Decryptor::XorAfterInflate { key } = &options.decryptor {
+                    xor_bytes(&mut output[before..], *key);
+                }
+            }
         } else {
             if segment.original_size != segment.packed_size {
                 bail!("stored XP3 segment size mismatch for `{}`", entry.name);
             }
             output.extend_from_slice(&segment_bytes);
+            if entry.encrypted {
+                if let Xp3Decryptor::XorAfterInflate { key } = &options.decryptor {
+                    let start = output.len() - segment_bytes.len();
+                    xor_bytes(&mut output[start..], *key);
+                }
+            }
         }
     }
 
@@ -527,6 +541,35 @@ mod tests {
     }
 
     #[test]
+    fn xp3_reads_xor_after_inflate_segment() {
+        let root = test_dir("suzu-xp3-xor-after-inflate");
+        fs::create_dir_all(&root).unwrap();
+        let path = root.join("encrypted-compressed.xp3");
+        write_test_xp3_with_post_inflate_encryption(
+            &path,
+            "main/custom.ks",
+            b"@jump target=*start",
+            0x5a,
+        );
+
+        let archive = Xp3Archive::from_file_with_options(
+            &path,
+            Xp3Options {
+                decryptor: Xp3Decryptor::XorAfterInflate { key: 0x5a },
+            },
+        )
+        .unwrap();
+
+        assert!(archive.entries()[0].encrypted);
+        assert_eq!(
+            archive.read_file("main/custom.ks").unwrap(),
+            b"@jump target=*start"
+        );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn xp3_reads_chained_index() {
         let root = test_dir("suzu-xp3-chained");
         fs::create_dir_all(&root).unwrap();
@@ -614,7 +657,26 @@ mod tests {
         xor_bytes(&mut segment, key);
         let segment_offset = XP3_HEADER_LEN as u64;
         let index_offset = segment_offset + segment.len() as u64;
-        let index = build_index_with_encryption(name, data.len() as u64, &segment, segment_offset);
+        let index =
+            build_index_with_encryption(name, data.len() as u64, &segment, segment_offset, false);
+
+        let mut bytes = XP3_MAGIC.to_vec();
+        bytes.extend_from_slice(&index_offset.to_le_bytes());
+        bytes.extend_from_slice(&segment);
+        bytes.push(INDEX_KIND_RAW);
+        bytes.extend_from_slice(&(index.len() as u64).to_le_bytes());
+        bytes.extend_from_slice(&index);
+        fs::write(path, bytes).unwrap();
+    }
+
+    fn write_test_xp3_with_post_inflate_encryption(path: &Path, name: &str, data: &[u8], key: u8) {
+        let mut decrypted = data.to_vec();
+        xor_bytes(&mut decrypted, key);
+        let segment = zlib(&decrypted);
+        let segment_offset = XP3_HEADER_LEN as u64;
+        let index_offset = segment_offset + segment.len() as u64;
+        let index =
+            build_index_with_encryption(name, data.len() as u64, &segment, segment_offset, true);
 
         let mut bytes = XP3_MAGIC.to_vec();
         bytes.extend_from_slice(&index_offset.to_le_bytes());
@@ -662,6 +724,7 @@ mod tests {
         original_size: u64,
         packed_segment: &[u8],
         segment_offset: u64,
+        compressed_segment: bool,
     ) -> Vec<u8> {
         let mut info = Vec::new();
         info.extend_from_slice(&1_u32.to_le_bytes());
@@ -674,7 +737,7 @@ mod tests {
         }
 
         let mut segm = Vec::new();
-        segm.extend_from_slice(&0_u32.to_le_bytes());
+        segm.extend_from_slice(&(u32::from(compressed_segment)).to_le_bytes());
         segm.extend_from_slice(&segment_offset.to_le_bytes());
         segm.extend_from_slice(&original_size.to_le_bytes());
         segm.extend_from_slice(&(packed_segment.len() as u64).to_le_bytes());
