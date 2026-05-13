@@ -108,6 +108,11 @@ impl Xp3Archive {
         &self.entries
     }
 
+    pub fn with_options(mut self, options: Xp3Options) -> Self {
+        self.options = options;
+        self
+    }
+
     pub fn find(&self, name: &str) -> Option<&Xp3Entry> {
         let normalized = normalize_path(name);
         self.entries

@@ -17,3 +17,4 @@ suzu-asset.workspace = true
 suzu-core.workspace = true
 suzu-editor-core.workspace = true
 suzu-platform.workspace = true
+suzu-script.workspace = true

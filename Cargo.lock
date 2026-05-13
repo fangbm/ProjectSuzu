@@ -3760,6 +3760,7 @@ dependencies = [
  "suzu-core",
  "suzu-editor-core",
  "suzu-platform",
+ "suzu-script",
  "winresource",
 ]
 
