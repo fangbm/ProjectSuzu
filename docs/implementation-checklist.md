@@ -81,7 +81,7 @@ This checklist tracks the work completed to turn Project Suzu into a complete fi
 - [x] Editor development plan covering MVP scope, architecture, document model, UI, diagnostics, preview, tests, and milestones.
 - [x] `suzu-editor-core` crate with editor document model, `.szs` import/export, graph diagnostics, project scan, and undo command primitives.
 - [x] Initial `suzu-editor` desktop binary with project scan, script open, visual node list, basic node inspector, export/save, and diagnostics panel.
-- [x] Release packaging includes `suzu-editor` and editor planning documentation.
+- [x] Release packaging includes `suzu-launcher`, `suzu-editor`, `suzu-xp3-viewer`, and editor planning documentation.
 - [ ] Rich node forms for all built-in commands.
 - [ ] Branch graph visualization with editable edges.
 - [ ] Asset picker previews for images and audio.

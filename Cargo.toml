@@ -18,6 +18,8 @@ members = [
     "tools/suzu-compiler",
     "tools/suzu-bench",
     "tools/suzu-editor",
+    "tools/suzu-launcher",
+    "tools/suzu-xp3-viewer",
 ]
 resolver = "2"
 
@@ -35,7 +37,9 @@ thiserror = "1"
 tracing = "0.1"
 mlua = { version = "0.10", features = ["lua54", "vendored"] }
 windows-sys = { version = "0.61.2", features = ["Win32_UI_WindowsAndMessaging"] }
+winresource = "0.1"
 eframe = { version = "0.27", default-features = true }
+encoding_rs = "0.8"
 suzu-core = { path = "crates/suzu-core" }
 suzu-script = { path = "crates/suzu-script" }
 suzu-render = { path = "crates/suzu-render" }

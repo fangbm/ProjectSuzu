@@ -186,6 +186,15 @@ impl SuzuApp {
         Ok(())
     }
 
+    pub fn load_script_asset(&mut self, id: impl Into<suzu_asset::AssetId>) -> anyhow::Result<()> {
+        let id = id.into();
+        let bytes = self.assets.load_asset_bytes(id.clone())?;
+        let source = String::from_utf8(bytes)
+            .map_err(|err| anyhow::anyhow!("script asset `{}` is not UTF-8: {err}", id.0))?;
+        self.load_script(&source)
+            .map_err(|err| anyhow::anyhow!("failed to compile script asset `{}`: {err}", id.0))
+    }
+
     pub fn advance_script(&mut self) -> bool {
         let Some((position, command)) = self.script.next_command_with_position() else {
             return false;
@@ -230,6 +239,21 @@ impl SuzuApp {
         path: impl AsRef<std::path::Path>,
     ) -> anyhow::Result<usize> {
         self.assets.register_manifest_file(path)
+    }
+
+    pub fn register_xp3_file(
+        &mut self,
+        path: impl AsRef<std::path::Path>,
+    ) -> anyhow::Result<usize> {
+        self.assets.register_xp3_file(path)
+    }
+
+    pub fn register_xp3_file_with_options(
+        &mut self,
+        path: impl AsRef<std::path::Path>,
+        options: suzu_asset::Xp3Options,
+    ) -> anyhow::Result<usize> {
+        self.assets.register_xp3_file_with_options(path, options)
     }
 
     pub fn apply_user_settings(&mut self, settings: UserSettings) {
