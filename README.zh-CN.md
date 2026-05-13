@@ -61,6 +61,14 @@ start examples\web-browser-shell\index.html
 桌面示例默认启用标题界面。框架层可通过 `GameConfig.title_screen.enabled = true` 打开标题入口，并通过 `TitleScreenConfig` 设置标题和副标题；如果保持默认值，`SuzuApp` 会像普通运行时一样直接进入脚本，方便嵌入到自定义启动流程中。
 可视化剧本编辑器可以通过 `cargo run -p suzu-editor` 启动；当前 MVP 支持扫描工程、打开 `.szs`、编辑常见节点、导出保存和刷新诊断。
 
+XP3/KRKR 测试工具支持加载 JSON 解密模块。在 `suzu-launcher` 或 `suzu-xp3-viewer` 的 `Decrypt module` 输入框填入模块路径即可；命令行转换可使用：
+
+```powershell
+cargo run -p suzu-launcher -- --krkr2suzu "D:\game" "D:\out" --decrypt-module examples\decrypt-modules\xor-5a.json
+```
+
+模块格式见：[docs/decrypt-modules.md](docs/decrypt-modules.md)。
+
 性能 smoke test：
 
 ```powershell

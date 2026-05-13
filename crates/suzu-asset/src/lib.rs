@@ -1,4 +1,5 @@
 pub mod archive;
+pub mod decrypt_module;
 pub mod krkr;
 pub mod manager;
 pub mod manifest;
@@ -7,6 +8,7 @@ pub mod types;
 pub mod xp3;
 
 pub use archive::{archive_magic, checksum64, PackageArchive};
+pub use decrypt_module::DecryptModule;
 pub use krkr::{
     probe_krkr_directory, KrkrArchiveReport, KrkrCompatibilityReport, LoseEmotePsbReport,
     PackinOneReport,

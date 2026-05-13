@@ -9,7 +9,9 @@ use std::{
 
 use eframe::egui;
 use suzu_app::{GameConfig, SuzuApp, TitleScreenConfig};
-use suzu_asset::{AssetType, TextureAsset, Xp3Archive, Xp3Decryptor, Xp3Entry, Xp3Options};
+use suzu_asset::{
+    AssetType, DecryptModule, TextureAsset, Xp3Archive, Xp3Decryptor, Xp3Entry, Xp3Options,
+};
 use suzu_platform::{DesktopApp, DesktopFrame, DesktopInputEvent, FrameSprite, FrameText};
 
 fn main() -> eframe::Result<()> {
@@ -35,6 +37,7 @@ struct Xp3ViewerApp {
     xp3_path: String,
     xor_enabled: bool,
     xor_key: String,
+    decrypt_module_path: String,
     archive: Option<Xp3Archive>,
     entries: Vec<EntryRow>,
     selected: Option<usize>,
@@ -89,6 +92,7 @@ impl Xp3ViewerApp {
             xp3_path: initial_path,
             xor_enabled: false,
             xor_key: "5A".to_owned(),
+            decrypt_module_path: String::new(),
             archive: None,
             entries: Vec::new(),
             selected: None,
@@ -147,6 +151,12 @@ impl Xp3ViewerApp {
     }
 
     fn xp3_options(&self) -> Result<Xp3Options, String> {
+        let module_path = clean_path_input(&self.decrypt_module_path);
+        if !module_path.is_empty() {
+            let module = DecryptModule::from_json_file(&module_path)
+                .map_err(|error| format!("Failed to load decrypt module: {error:#}"))?;
+            return Ok(module.xp3_options());
+        }
         if !self.xor_enabled {
             return Ok(Xp3Options::default());
         }
@@ -308,9 +318,12 @@ impl Xp3ViewerApp {
         ui.horizontal(|ui| {
             ui.checkbox(&mut self.xor_enabled, "XOR encrypted segments");
             ui.add_enabled(
-                self.xor_enabled,
+                self.xor_enabled && self.decrypt_module_path.trim().is_empty(),
                 egui::TextEdit::singleline(&mut self.xor_key).desired_width(60.0),
             );
+            ui.separator();
+            ui.label("Decrypt module");
+            ui.text_edit_singleline(&mut self.decrypt_module_path);
             ui.separator();
             ui.label(&self.status);
         });

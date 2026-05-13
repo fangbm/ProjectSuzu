@@ -13,8 +13,8 @@ use eframe::egui;
 use encoding_rs::{SHIFT_JIS, UTF_16BE, UTF_16LE};
 use suzu_app::{GameConfig, SuzuApp, TitleScreenConfig};
 use suzu_asset::{
-    probe_krkr_directory, AssetType, KrkrCompatibilityReport, Xp3Archive, Xp3Decryptor, Xp3Entry,
-    Xp3Options,
+    probe_krkr_directory, AssetType, DecryptModule, KrkrCompatibilityReport, Xp3Archive,
+    Xp3Decryptor, Xp3Entry, Xp3Options,
 };
 use suzu_editor_core::{convert_krkr_ks_to_szs, ProjectIndex};
 use suzu_platform::{DesktopApp, DesktopFrame, DesktopInputEvent, FrameSprite, FrameText};
@@ -58,17 +58,34 @@ fn main() -> eframe::Result<()> {
 
 fn run_krkr2suzu_cli(args: &[OsString]) -> anyhow::Result<()> {
     if args.len() < 2 {
-        bail!("usage: suzu-launcher --krkr2suzu <krkr-folder> <output-folder> [--xor <hex-byte>]");
+        bail!(
+            "usage: suzu-launcher --krkr2suzu <krkr-folder> <output-folder> [--xor <hex-byte>] [--decrypt-module <module.json>]"
+        );
     }
     let root = PathBuf::from(&args[0]);
     let output = PathBuf::from(&args[1]);
     let mut options = vec![Xp3Options::default()];
-    if args.len() >= 4 && args[2].to_string_lossy() == "--xor" {
-        if args[3].to_string_lossy().eq_ignore_ascii_case("auto") {
-            options = auto_xor_option_candidates();
-        } else {
-            let key = parse_xor_key(&args[3].to_string_lossy())?;
-            options = xor_option_candidates_for_key(key);
+    let mut index = 2;
+    while index < args.len() {
+        match args[index].to_string_lossy().as_ref() {
+            "--xor" if index + 1 < args.len() => {
+                if args[index + 1]
+                    .to_string_lossy()
+                    .eq_ignore_ascii_case("auto")
+                {
+                    options = auto_xor_option_candidates();
+                } else {
+                    let key = parse_xor_key(&args[index + 1].to_string_lossy())?;
+                    options = xor_option_candidates_for_key(key);
+                }
+                index += 2;
+            }
+            "--decrypt-module" if index + 1 < args.len() => {
+                let module = DecryptModule::from_json_file(PathBuf::from(&args[index + 1]))?;
+                options = vec![module.xp3_options()];
+                index += 2;
+            }
+            other => bail!("unknown krkr2suzu option `{other}`"),
         }
     }
 
@@ -336,6 +353,7 @@ struct LauncherApp {
     xp3_path: String,
     krkr_path: String,
     krkr_output_path: String,
+    decrypt_module_path: String,
     krkr_report: Option<KrkrPackageReport>,
     krkr_compatibility: Option<KrkrCompatibilityReport>,
     xor_enabled: bool,
@@ -391,6 +409,7 @@ impl LauncherApp {
             xp3_path: String::new(),
             krkr_path: String::new(),
             krkr_output_path: String::new(),
+            decrypt_module_path: String::new(),
             krkr_report: None,
             krkr_compatibility: None,
             xor_enabled: false,
@@ -618,17 +637,17 @@ impl LauncherApp {
     }
 
     fn xp3_options(&self) -> Result<Xp3Options, String> {
-        if !self.xor_enabled {
-            return Ok(Xp3Options::default());
-        }
-        Ok(Xp3Options {
-            decryptor: Xp3Decryptor::Xor {
-                key: self.xor_key()?,
-            },
-        })
+        self.xp3_option_candidates()
+            .map(|mut options| options.remove(0))
     }
 
     fn xp3_option_candidates(&self) -> Result<Vec<Xp3Options>, String> {
+        let module_path = clean_path_input(&self.decrypt_module_path);
+        if !module_path.is_empty() {
+            let module = DecryptModule::from_json_file(&module_path)
+                .map_err(|error| format!("Failed to load decrypt module: {error:#}"))?;
+            return Ok(vec![module.xp3_options()]);
+        }
         if !self.xor_enabled {
             return Ok(vec![Xp3Options::default()]);
         }
@@ -800,12 +819,16 @@ impl LauncherApp {
         ui.horizontal(|ui| {
             ui.checkbox(&mut self.xor_enabled, "XOR encrypted segments");
             ui.add_enabled(
-                self.xor_enabled,
+                self.xor_enabled && self.decrypt_module_path.trim().is_empty(),
                 egui::TextEdit::singleline(&mut self.xor_key).desired_width(64.0),
             );
             if ui.button("Run Selected Script").clicked() {
                 self.start_xp3_script();
             }
+        });
+        ui.horizontal(|ui| {
+            ui.label("Decrypt module");
+            ui.text_edit_singleline(&mut self.decrypt_module_path);
         });
 
         ui.separator();

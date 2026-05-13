@@ -64,6 +64,7 @@ pub enum Xp3Decryptor {
     NameXor {
         key: u8,
     },
+    Pipeline(Vec<Xp3Decryptor>),
     Custom {
         scheme: Arc<dyn Xp3CryptScheme>,
     },
@@ -73,6 +74,11 @@ impl Xp3Decryptor {
     fn decrypt_name_bytes(&self, bytes: &mut [u8]) {
         match self {
             Self::NameXor { key } => xor_bytes(bytes, *key),
+            Self::Pipeline(decryptors) => {
+                for decryptor in decryptors {
+                    decryptor.decrypt_name_bytes(bytes);
+                }
+            }
             Self::Custom { scheme } => scheme.decrypt_name_bytes(bytes),
             Self::None | Self::Xor { .. } | Self::XorAfterInflate { .. } => {}
         }
@@ -81,8 +87,25 @@ impl Xp3Decryptor {
     fn decrypt_segment_bytes(&self, bytes: &mut [u8], entry: &Xp3Entry, segment: &Xp3Segment) {
         match self {
             Self::Xor { key } => xor_bytes(bytes, *key),
+            Self::Pipeline(decryptors) => {
+                for decryptor in decryptors {
+                    decryptor.decrypt_segment_bytes(bytes, entry, segment);
+                }
+            }
             Self::Custom { scheme } => scheme.decrypt_segment_bytes(bytes, entry, segment),
             Self::None | Self::XorAfterInflate { .. } | Self::NameXor { .. } => {}
+        }
+    }
+
+    fn decrypt_after_inflate(&self, bytes: &mut [u8]) {
+        match self {
+            Self::XorAfterInflate { key } => xor_bytes(bytes, *key),
+            Self::Pipeline(decryptors) => {
+                for decryptor in decryptors {
+                    decryptor.decrypt_after_inflate(bytes);
+                }
+            }
+            Self::None | Self::Xor { .. } | Self::NameXor { .. } | Self::Custom { .. } => {}
         }
     }
 }
@@ -356,9 +379,9 @@ fn read_entry_from_bytes(
                 bail!("XP3 segment unpacked size mismatch for `{}`", entry.name);
             }
             if entry.encrypted {
-                if let Xp3Decryptor::XorAfterInflate { key } = &options.decryptor {
-                    xor_bytes(&mut output[before..], *key);
-                }
+                options
+                    .decryptor
+                    .decrypt_after_inflate(&mut output[before..]);
             }
         } else {
             if segment.original_size != segment.packed_size {
@@ -366,10 +389,10 @@ fn read_entry_from_bytes(
             }
             output.extend_from_slice(&segment_bytes);
             if entry.encrypted {
-                if let Xp3Decryptor::XorAfterInflate { key } = &options.decryptor {
-                    let start = output.len() - segment_bytes.len();
-                    xor_bytes(&mut output[start..], *key);
-                }
+                let start = output.len() - segment_bytes.len();
+                options
+                    .decryptor
+                    .decrypt_after_inflate(&mut output[start..]);
             }
         }
     }
@@ -569,6 +592,36 @@ mod tests {
         assert_eq!(
             archive.read_file("main/custom.ks").unwrap(),
             b"@jump target=*start"
+        );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn xp3_reads_pipeline_decryptor() {
+        let root = test_dir("suzu-xp3-pipeline");
+        fs::create_dir_all(&root).unwrap();
+        let path = root.join("encrypted-compressed.xp3");
+        write_test_xp3_with_post_inflate_encryption(
+            &path,
+            "main/pipeline.ks",
+            b"@wait time=100",
+            0x90,
+        );
+
+        let archive = Xp3Archive::from_file_with_options(
+            &path,
+            Xp3Options {
+                decryptor: Xp3Decryptor::Pipeline(vec![Xp3Decryptor::XorAfterInflate {
+                    key: 0x90,
+                }]),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            archive.read_file("main/pipeline.ks").unwrap(),
+            b"@wait time=100"
         );
 
         let _ = fs::remove_dir_all(root);
