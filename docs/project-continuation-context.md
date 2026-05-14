@@ -1,6 +1,6 @@
 # Project Suzu Continuation Context
 
-Last updated: 2026-05-14, Asia/Shanghai
+Last updated: 2026-05-14 23:03:09 +08:00
 
 This is the compressed handoff for continuing Project Suzu. Update this file at the end of each future Codex conversation on this repository before sending the final reply. Treat live `git status`, GitHub Releases, and GitHub Actions as the source of truth when they differ from this note.
 
@@ -16,26 +16,29 @@ This is the compressed handoff for continuing Project Suzu. Update this file at 
 ## Current Repo State
 
 - Current branch: `main`.
-- Current local and remote HEAD before the continuation-context refresh: `44e00ee Prepare v0.1.4 release boundaries`.
-- `main` is clean and aligned with `origin/main` before this document refresh.
+- `main` was pushed through `78df87b Add continuation context handoff` before the `v0.1.4` release tag was created.
+- `v0.1.4` points at `78df87b`.
+- This post-release note is intentionally after the `v0.1.4` tag and should be pushed to `main` only; it does not change the published release tag.
 - `CHANGELOG.md` already contains `0.1.4 - 2026-05-14`.
-- `v0.1.4` has not existed yet in GitHub Releases or remote tags at the time of this refresh.
 - Existing preview tags/releases: `v0.1.4-xp3-preview.1` through `v0.1.4-xp3-preview.5`.
 - One old stash remains: `stash@{0}: On feature/xp3-archive-support: local xp3 legal cleanup before main merge`. It was retained from earlier cleanup work; do not drop it unless the user asks.
 
-## Release Plan
+## Release Status
 
-For the official `v0.1.4` release:
+Official `v0.1.4` is published.
 
-1. Commit this continuation-context refresh on `main`.
-2. Push `main`.
-3. Create tag `v0.1.4` on the pushed `main` commit.
-4. Push tag `v0.1.4` to trigger `.github/workflows/release.yml`.
-5. Before reporting success, verify:
-   - GitHub Actions release run status.
-   - Workflow build artifacts.
-   - GitHub Release `v0.1.4` exists.
-   - Release assets are uploaded.
+- Release URL: `https://github.com/fangbm/ProjectSuzu/releases/tag/v0.1.4`.
+- Release workflow run: `25866883593`, conclusion `success`.
+- Quality gate passed: fmt, clippy, workspace tests, docs, Lua feature tests, and packaging precheck.
+- Build jobs passed: `Build ubuntu-latest` and `Build windows-latest`.
+- Publish job passed: `Publish GitHub Release`.
+- Workflow artifacts confirmed:
+  - `project-suzu-linux-x64`
+  - `project-suzu-windows-x64`
+- Release assets confirmed uploaded:
+  - `project-suzu-v0.1.4-linux-x64.tar.gz`
+  - `project-suzu-v0.1.4-windows-x64.tar.gz`
+- CI for both `main` push and `v0.1.4` tag push also completed successfully.
 
 The release workflow runs on pushed `v*` tags. Manual workflow dispatch can build artifacts but does not publish a GitHub Release because the publish job only runs for tag refs.
 
@@ -69,6 +72,8 @@ The release workflow runs on pushed `v*` tags. Manual workflow dispatch can buil
 - Added release quality gates, tag-triggered publish, and versioned Windows/Linux artifact packaging.
 - Fixed workspace repository metadata.
 - Latest successful CI on `main` before this refresh: run `25861280447`, commit `44e00ee`.
+- Added and tracked this continuation-context file in `78df87b`.
+- Pushed `v0.1.4` and verified the official release.
 
 ## Commands
 
@@ -76,9 +81,6 @@ The release workflow runs on pushed `v*` tags. Manual workflow dispatch can buil
 git status --short --branch
 gh release list --repo fangbm/ProjectSuzu --limit 20
 git tag --list "v0.1.4*" --sort=-creatordate
-git push origin main
-git tag v0.1.4
-git push origin v0.1.4
 gh run list --repo fangbm/ProjectSuzu --workflow Release --limit 5
 gh release view v0.1.4 --repo fangbm/ProjectSuzu
 ```
