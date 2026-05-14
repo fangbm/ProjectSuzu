@@ -87,22 +87,18 @@ app.load_script_asset("main")?;
 
 When an XP3 is registered, supported entries are exposed as normal assets by file stem. For example, `scenario/main.szs` becomes the script asset `main`, and `image/bg_school.png` becomes the texture asset `bg_school`. Scripts can then reference those ids normally, such as `@bg file="bg_school"`.
 
-Encrypted XP3 entries are no longer skipped. Built-in decryptor options cover simple XOR segment encryption and XOR-obfuscated names:
+Protected XP3 entries are indexed for reporting, but Project Suzu only reads plaintext entries by default. Projects that own a compatible external XP3 processor can pass it through the plugin hook:
 
 ```rust
-use suzu_asset::{Xp3Decryptor, Xp3Options};
+use suzu_asset::Xp3PluginModule;
 
-app.register_xp3_file_with_options(
-    "data.xp3",
-    Xp3Options {
-        decryptor: Xp3Decryptor::Xor { key: 0x5a },
-    },
-)?;
+let module = Xp3PluginModule::from_json_file("xp3-plugin.json")?;
+app.register_xp3_file_with_options("data.xp3", module.xp3_options())?;
 ```
 
-Special KRKR/game-specific schemes can implement `Xp3CryptScheme` and pass it through `Xp3Decryptor::Custom`. These schemes differ by game or plugin, so Project Suzu provides the hook rather than pretending there is one universal KRKR decryption rule.
+The repository does not include game-specific XP3 processors or proprietary handling rules. Those should live outside the public repository and be supplied by the application that has the right to use them.
 
-For manual testing, run `suzu-xp3-viewer` with an XP3 path. It lists indexed entries, marks encrypted entries, previews decoded image assets, and previews UTF-8 script/text files. Select a `.szs` script entry and press Start Game to register the XP3, load the script, and run an embedded game preview. The viewer also exposes a simple XOR segment decrypt option for test archives.
+For manual testing, run `suzu-xp3-viewer` with an XP3 path. It lists indexed entries, marks protected entries, previews plaintext image assets, and previews UTF-8 script/text files. Select a `.szs` script entry and press Start Game to register the XP3, load the script, and run an embedded game preview.
 
 ## Title Screen
 

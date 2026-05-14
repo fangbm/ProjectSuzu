@@ -12,7 +12,7 @@ This checklist tracks the work completed to turn Project Suzu into a complete fi
 - [x] CI workflow for format, clippy, and tests.
 - [x] Core math and error types: `Vec2`, `Color`, `Rect`, `Affine2`.
 - [x] Typed module boundaries for script, render, text, audio, asset, save, input, platform, and app.
-- [x] Release workflow builds desktop artifacts for Linux, Windows, and macOS on tags.
+- [x] Release workflow builds desktop artifacts for Linux and Windows on tags.
 
 ## Phase 1 - Rendering Core
 

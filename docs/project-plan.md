@@ -52,7 +52,6 @@
 | **Live2D** | Live2D Cubism Core SDK (Rust FFI) | 角色立绘动态表情 |
 | **视频播放** | `ffmpeg-next` / `webm` | OP/ED 视频、剧情过场 |
 | **压缩** | `zstd` / `lz4` | 资源包压缩与存档压缩 |
-| **加密** | `aes-gcm` / `chacha20poly1305` | 资源包加密（可选） |
 | **HTTP** | `reqwest` | DLC 下载、云端存档同步 |
 
 ---
@@ -446,7 +445,7 @@ struct AssetManager {
     cache: LruCache<AssetId, LoadedAsset>,
     // 异步加载队列
     load_queue: LoadQueue,
-    // 资源包（可选加密）
+    // 资源包
     pak_files: Vec<PakFile>,
 }
 
@@ -763,7 +762,6 @@ suzu-framework/
 |------|------|---------|
 | `cosmic-text` 竖排支持不完善 | 高 | 预留自定义 shaping 路径，必要时直接调 HarfBuzz |
 | wgpu Web 后端性能不足 | 中 | 桌面端为主，Web 为辅助分发渠道 |
-| 资源包加密被破解 | 低 | 加密为可选功能，不承诺绝对安全 |
 | 开发周期超预期 | 中 | Phase 1-4 为 MVP，Phase 5 可裁剪；每 Phase 结束可发布 |
 | Lua 绑定性能瓶颈 | 中 | 热点路径（渲染指令）不走 Lua，仅逻辑层使用 |
 

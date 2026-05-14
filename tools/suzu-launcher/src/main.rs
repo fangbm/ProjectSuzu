@@ -13,8 +13,8 @@ use eframe::egui;
 use encoding_rs::{SHIFT_JIS, UTF_16BE, UTF_16LE};
 use suzu_app::{GameConfig, SuzuApp, TitleScreenConfig};
 use suzu_asset::{
-    probe_krkr_directory, AssetType, DecryptModule, KrkrCompatibilityReport, Xp3Archive,
-    Xp3Decryptor, Xp3Entry, Xp3Options,
+    probe_krkr_directory, AssetType, KrkrCompatibilityReport, Xp3Archive, Xp3Entry, Xp3Options,
+    Xp3PluginModule,
 };
 use suzu_editor_core::{convert_krkr_ks_to_szs, ProjectIndex};
 use suzu_platform::{DesktopApp, DesktopFrame, DesktopInputEvent, FrameSprite, FrameText};
@@ -59,7 +59,7 @@ fn main() -> eframe::Result<()> {
 fn run_krkr2suzu_cli(args: &[OsString]) -> anyhow::Result<()> {
     if args.len() < 2 {
         bail!(
-            "usage: suzu-launcher --krkr2suzu <krkr-folder> <output-folder> [--xor <hex-byte>] [--decrypt-module <module.json>]"
+            "usage: suzu-launcher --krkr2suzu <krkr-folder> <output-folder> [--xp3-plugin <module.json>]"
         );
     }
     let root = PathBuf::from(&args[0]);
@@ -68,20 +68,8 @@ fn run_krkr2suzu_cli(args: &[OsString]) -> anyhow::Result<()> {
     let mut index = 2;
     while index < args.len() {
         match args[index].to_string_lossy().as_ref() {
-            "--xor" if index + 1 < args.len() => {
-                if args[index + 1]
-                    .to_string_lossy()
-                    .eq_ignore_ascii_case("auto")
-                {
-                    options = auto_xor_option_candidates();
-                } else {
-                    let key = parse_xor_key(&args[index + 1].to_string_lossy())?;
-                    options = xor_option_candidates_for_key(key);
-                }
-                index += 2;
-            }
-            "--decrypt-module" if index + 1 < args.len() => {
-                let module = DecryptModule::from_json_file(PathBuf::from(&args[index + 1]))?;
+            "--xp3-plugin" if index + 1 < args.len() => {
+                let module = Xp3PluginModule::from_json_file(PathBuf::from(&args[index + 1]))?;
                 options = vec![module.xp3_options()];
                 index += 2;
             }
@@ -107,32 +95,15 @@ fn run_krkr_probe_cli(args: &[OsString]) -> anyhow::Result<()> {
         bail!("usage: suzu-launcher --krkr-probe <krkr-folder>");
     };
     let report = probe_krkr_directory(PathBuf::from(root))?;
-    if let Some(packinone) = &report.packinone {
-        println!("PackinOne: {}", packinone.dll_path.display());
-        println!("  chacha_filter: {}", packinone.uses_chacha_filter);
-        println!("  loadDataPack: {}", packinone.exposes_load_data_pack);
-        println!("  PackinOneList: {}", packinone.exposes_packinone_list);
-        println!("  cryptmode: {}", packinone.exposes_cryptmode);
-        println!("  outeriv: {}", packinone.exposes_outeriv);
-    } else {
-        println!("PackinOne: not detected");
-    }
-    if let Some(emote) = &report.lose_emote_psb {
-        println!(
-            "Lose Emote PSB: seed {} ({})",
-            emote.randomizer_seed,
-            emote.dll_path.display()
-        );
-    }
     println!(
-        "KRKR archives: {} archives, {} script-like entries, {} encrypted script-like entries",
+        "KRKR archives: {} archives, {} script-like entries, {} protected script-like entries",
         report.archives.len(),
         report.script_entries(),
-        report.encrypted_script_entries()
+        report.protected_script_entries()
     );
-    if report.has_packinone_blocker() {
+    if report.has_protected_entries() {
         println!(
-            "Compatibility: blocked by PackinOne encrypted script storage; a PackinOne decryptor is required before direct Suzu playback."
+            "Compatibility: direct Suzu playback requires an external XP3 plugin for this package."
         );
     }
     for archive in &report.archives {
@@ -146,8 +117,8 @@ fn run_krkr_probe_cli(args: &[OsString]) -> anyhow::Result<()> {
             continue;
         }
         println!(
-            "  {name}: {} entries, {} script-like, {} encrypted",
-            archive.entries, archive.script_entries, archive.encrypted_script_entries
+            "  {name}: {} entries, {} script-like, {} protected",
+            archive.entries, archive.script_entries, archive.protected_script_entries
         );
         if !archive.entrypoint_candidates.is_empty() {
             println!(
@@ -320,14 +291,13 @@ fn convert_krkr_package_to_suzu_project(
     if total_commands == 0
         && compatibility
             .as_ref()
-            .and_then(|report| report.packinone.as_ref())
-            .is_some()
+            .is_some_and(KrkrCompatibilityReport::has_protected_entries)
     {
-        let encrypted_scripts = compatibility
+        let protected_scripts = compatibility
             .as_ref()
-            .map_or(0, KrkrCompatibilityReport::encrypted_script_entries);
+            .map_or(0, KrkrCompatibilityReport::protected_script_entries);
         bail!(
-            "decoded KRKR scripts contain no KAG commands; PackinOne/ChaCha storage protection is detected ({encrypted_scripts} encrypted script-like entries). Run `suzu-launcher --krkr-probe <folder>` for details."
+            "decoded KRKR scripts contain no KAG commands; this package has {protected_scripts} protected script-like entries. Run `suzu-launcher --krkr-probe <folder>` for details."
         );
     }
 
@@ -353,11 +323,9 @@ struct LauncherApp {
     xp3_path: String,
     krkr_path: String,
     krkr_output_path: String,
-    decrypt_module_path: String,
+    xp3_plugin_path: String,
     krkr_report: Option<KrkrPackageReport>,
     krkr_compatibility: Option<KrkrCompatibilityReport>,
-    xor_enabled: bool,
-    xor_key: String,
     xp3_entries: Vec<EntryRow>,
     selected_xp3_script: Option<usize>,
     game: Option<GamePreview>,
@@ -368,7 +336,7 @@ struct LauncherApp {
 struct EntryRow {
     name: String,
     kind: AssetType,
-    encrypted: bool,
+    protected: bool,
     original_size: u64,
 }
 
@@ -378,7 +346,7 @@ struct KrkrPackageReport {
     archives: Vec<KrkrArchiveSummary>,
     total_entries: usize,
     total_scripts: usize,
-    encrypted_scripts: usize,
+    protected_scripts: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -387,7 +355,7 @@ struct KrkrArchiveSummary {
     bytes: u64,
     entries: usize,
     scripts: usize,
-    encrypted_scripts: usize,
+    protected_scripts: usize,
     candidates: Vec<String>,
     error: Option<String>,
 }
@@ -409,11 +377,9 @@ impl LauncherApp {
             xp3_path: String::new(),
             krkr_path: String::new(),
             krkr_output_path: String::new(),
-            decrypt_module_path: String::new(),
+            xp3_plugin_path: String::new(),
             krkr_report: None,
             krkr_compatibility: None,
-            xor_enabled: false,
-            xor_key: "5A".to_owned(),
             xp3_entries: Vec::new(),
             selected_xp3_script: None,
             game: None,
@@ -511,7 +477,7 @@ impl LauncherApp {
         let mut archives = Vec::new();
         let mut total_entries = 0;
         let mut total_scripts = 0;
-        let mut encrypted_scripts = 0;
+        let mut protected_scripts = 0;
 
         let read_dir = match fs::read_dir(&root) {
             Ok(read_dir) => read_dir,
@@ -546,7 +512,7 @@ impl LauncherApp {
                         .iter()
                         .filter(|row| matches!(row.kind, AssetType::Script | AssetType::Data))
                         .collect::<Vec<_>>();
-                    let encrypted = scripts.iter().filter(|row| row.encrypted).count();
+                    let protected = scripts.iter().filter(|row| row.protected).count();
                     let candidates = scripts
                         .iter()
                         .filter(|row| krkr_entry_looks_like_entrypoint(&row.name))
@@ -555,13 +521,13 @@ impl LauncherApp {
                         .collect::<Vec<_>>();
                     total_entries += rows.len();
                     total_scripts += scripts.len();
-                    encrypted_scripts += encrypted;
+                    protected_scripts += protected;
                     KrkrArchiveSummary {
                         path,
                         bytes,
                         entries: rows.len(),
                         scripts: scripts.len(),
-                        encrypted_scripts: encrypted,
+                        protected_scripts: protected,
                         candidates,
                         error: None,
                     }
@@ -571,7 +537,7 @@ impl LauncherApp {
                     bytes,
                     entries: 0,
                     scripts: 0,
-                    encrypted_scripts: 0,
+                    protected_scripts: 0,
                     candidates: Vec::new(),
                     error: Some(format!("{error:#}")),
                 },
@@ -589,7 +555,7 @@ impl LauncherApp {
             archives,
             total_entries,
             total_scripts,
-            encrypted_scripts,
+            protected_scripts,
         });
     }
 
@@ -637,27 +603,17 @@ impl LauncherApp {
     }
 
     fn xp3_options(&self) -> Result<Xp3Options, String> {
-        self.xp3_option_candidates()
-            .map(|mut options| options.remove(0))
+        let module_path = clean_path_input(&self.xp3_plugin_path);
+        if module_path.is_empty() {
+            return Ok(Xp3Options::default());
+        }
+        let module = Xp3PluginModule::from_json_file(&module_path)
+            .map_err(|error| format!("Failed to load XP3 plugin module: {error:#}"))?;
+        Ok(module.xp3_options())
     }
 
     fn xp3_option_candidates(&self) -> Result<Vec<Xp3Options>, String> {
-        let module_path = clean_path_input(&self.decrypt_module_path);
-        if !module_path.is_empty() {
-            let module = DecryptModule::from_json_file(&module_path)
-                .map_err(|error| format!("Failed to load decrypt module: {error:#}"))?;
-            return Ok(vec![module.xp3_options()]);
-        }
-        if !self.xor_enabled {
-            return Ok(vec![Xp3Options::default()]);
-        }
-        let key = self.xor_key()?;
-        Ok(xor_option_candidates_for_key(key))
-    }
-
-    fn xor_key(&self) -> Result<u8, String> {
-        parse_xor_key(&self.xor_key)
-            .map_err(|_| "XOR key must be a byte, for example 5A or 90.".to_owned())
+        self.xp3_options().map(|options| vec![options])
     }
 
     fn start_project_script(&mut self) {
@@ -817,18 +773,11 @@ impl LauncherApp {
             }
         });
         ui.horizontal(|ui| {
-            ui.checkbox(&mut self.xor_enabled, "XOR encrypted segments");
-            ui.add_enabled(
-                self.xor_enabled && self.decrypt_module_path.trim().is_empty(),
-                egui::TextEdit::singleline(&mut self.xor_key).desired_width(64.0),
-            );
+            ui.label("XP3 plugin");
+            ui.text_edit_singleline(&mut self.xp3_plugin_path);
             if ui.button("Run Selected Script").clicked() {
                 self.start_xp3_script();
             }
-        });
-        ui.horizontal(|ui| {
-            ui.label("Decrypt module");
-            ui.text_edit_singleline(&mut self.decrypt_module_path);
         });
 
         ui.separator();
@@ -838,7 +787,7 @@ impl LauncherApp {
                 if !matches!(entry.kind, AssetType::Script | AssetType::Data) {
                     continue;
                 }
-                let lock = if entry.encrypted { "locked" } else { "plain" };
+                let lock = if entry.protected { "locked" } else { "plain" };
                 let label = format!(
                     "{:?} · {lock} · {} bytes · {}",
                     entry.kind, entry.original_size, entry.name
@@ -866,38 +815,20 @@ impl LauncherApp {
         });
         if let Some(report) = &self.krkr_report {
             ui.label(format!(
-                "{} XP3 · {} entries · {} script-like · {} encrypted scripts",
+                "{} XP3 · {} entries · {} script-like · {} protected scripts",
                 report.archives.len(),
                 report.total_entries,
                 report.total_scripts,
-                report.encrypted_scripts
+                report.protected_scripts
             ));
             ui.label(format!("Root: {}", report.root.display()));
             if let Some(compatibility) = &self.krkr_compatibility {
-                if let Some(packinone) = &compatibility.packinone {
-                    ui.colored_label(
-                        egui::Color32::from_rgb(190, 92, 32),
-                        format!(
-                            "PackinOne detected: ChaCha filter={} loadDataPack={} cryptmode={} outeriv={}",
-                            packinone.uses_chacha_filter,
-                            packinone.exposes_load_data_pack,
-                            packinone.exposes_cryptmode,
-                            packinone.exposes_outeriv
-                        ),
-                    );
-                }
-                if let Some(emote) = &compatibility.lose_emote_psb {
-                    ui.label(format!(
-                        "Lose Emote PSB seed detected: {}",
-                        emote.randomizer_seed
-                    ));
-                }
-                if compatibility.has_packinone_blocker() {
+                if compatibility.has_protected_entries() {
                     ui.colored_label(
                         egui::Color32::from_rgb(210, 72, 72),
                         format!(
-                            "Direct playback blocked: PackinOne protects {} script-like entries.",
-                            compatibility.encrypted_script_entries()
+                            "Direct playback requires an external XP3 plugin for {} protected script-like entries.",
+                            compatibility.protected_script_entries()
                         ),
                     );
                 }
@@ -919,36 +850,31 @@ impl LauncherApp {
                             continue;
                         }
                         ui.label(format!(
-                            "{name} · {} MB · {} entries · {} scripts · {} encrypted",
+                            "{name} · {} MB · {} entries · {} scripts · {} protected",
                             archive.bytes / 1024 / 1024,
                             archive.entries,
                             archive.scripts,
-                            archive.encrypted_scripts
+                            archive.protected_scripts
                         ));
                         for candidate in &archive.candidates {
                             ui.label(format!("  entry: {candidate}"));
                         }
                     }
                 });
-            if report.encrypted_scripts > 0 {
+            if report.protected_scripts > 0 {
                 if self
                     .krkr_compatibility
                     .as_ref()
-                    .is_some_and(KrkrCompatibilityReport::has_packinone_blocker)
+                    .is_some_and(KrkrCompatibilityReport::has_protected_entries)
                 {
                     ui.colored_label(
                         egui::Color32::from_rgb(190, 92, 32),
-                        "KRKR scripts use PackinOne storage protection; XOR is not enough for this game.",
-                    );
-                } else if self.xor_enabled {
-                    ui.colored_label(
-                        egui::Color32::from_rgb(64, 128, 64),
-                        "XOR decryptor is enabled for KRKR scan and conversion.",
+                        "This package needs an external XP3 plugin before conversion.",
                     );
                 } else {
                     ui.colored_label(
                         egui::Color32::from_rgb(190, 92, 32),
-                        "KRKR scripts are encrypted; enable XOR or add a game-specific decryptor before conversion.",
+                        "Protected KRKR script entries need an external XP3 plugin before conversion.",
                     );
                 }
             }
@@ -1052,7 +978,7 @@ impl From<&Xp3Entry> for EntryRow {
         Self {
             name: entry.name.clone(),
             kind: asset_type_from_path(&entry.name),
-            encrypted: entry.encrypted,
+            protected: entry.protected,
             original_size: entry.original_size,
         }
     }
@@ -1151,9 +1077,6 @@ fn read_best_krkr_script(archives: &[Xp3Archive], entry_name: &str) -> Option<Ve
 }
 
 fn score_krkr_text(text: &str) -> i64 {
-    if text.contains("This is a protected archive") {
-        return i64::MIN / 2;
-    }
     let mut score = 0i64;
     for ch in text.chars() {
         match ch {
@@ -1257,33 +1180,6 @@ fn sanitize_krkr_label(label: &str) -> String {
             _ => '_',
         })
         .collect()
-}
-
-fn parse_xor_key(value: &str) -> anyhow::Result<u8> {
-    let key_text = value.trim().trim_start_matches("0x");
-    u8::from_str_radix(key_text, 16)
-        .or_else(|_| value.trim().parse::<u8>())
-        .with_context(|| format!("XOR key must be a byte, got `{value}`"))
-}
-
-fn xor_option_candidates_for_key(key: u8) -> Vec<Xp3Options> {
-    vec![
-        Xp3Options {
-            decryptor: Xp3Decryptor::Xor { key },
-        },
-        Xp3Options {
-            decryptor: Xp3Decryptor::XorAfterInflate { key },
-        },
-    ]
-}
-
-fn auto_xor_option_candidates() -> Vec<Xp3Options> {
-    let mut options = Vec::with_capacity(513);
-    options.push(Xp3Options::default());
-    for key in 0u8..=u8::MAX {
-        options.extend(xor_option_candidates_for_key(key));
-    }
-    options
 }
 
 fn decode_krkr_text(bytes: &[u8]) -> String {

@@ -27,7 +27,7 @@ Custom output and asset root:
 
 ## GitHub Release
 
-`.github/workflows/release.yml` builds Linux, Windows, and macOS artifacts on tags matching `v*`.
+`.github/workflows/release.yml` builds Linux and Windows artifacts on tags matching `v*`.
 
 ```powershell
 git tag v0.1.3

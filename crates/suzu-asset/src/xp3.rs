@@ -25,7 +25,7 @@ pub struct Xp3Archive {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Xp3Entry {
     pub name: String,
-    pub encrypted: bool,
+    pub protected: bool,
     pub original_size: u64,
     pub packed_size: u64,
     pub checksum: Option<u32>,
@@ -40,73 +40,97 @@ pub struct Xp3Segment {
     pub packed_size: u64,
 }
 
-pub trait Xp3CryptScheme: fmt::Debug + Send + Sync {
-    fn decrypt_name_bytes(&self, _bytes: &mut [u8]) {}
+pub trait Xp3PluginScheme: fmt::Debug + Send + Sync {
+    fn process_name_bytes(&self, _bytes: &mut [u8]) -> Result<()> {
+        Ok(())
+    }
 
-    fn decrypt_segment_bytes(&self, _bytes: &mut [u8], _entry: &Xp3Entry, _segment: &Xp3Segment) {}
+    fn process_segment_bytes(
+        &self,
+        _bytes: &mut [u8],
+        _entry: &Xp3Entry,
+        _segment: &Xp3Segment,
+    ) -> Result<()> {
+        Ok(())
+    }
+
+    fn process_after_inflate(
+        &self,
+        _bytes: &mut [u8],
+        _entry: &Xp3Entry,
+        _segment: &Xp3Segment,
+    ) -> Result<()> {
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct Xp3Options {
-    pub decryptor: Xp3Decryptor,
+    pub plugin: Xp3Plugin,
 }
 
 #[derive(Debug, Clone, Default)]
-pub enum Xp3Decryptor {
+pub enum Xp3Plugin {
     #[default]
     None,
-    Xor {
-        key: u8,
-    },
-    XorAfterInflate {
-        key: u8,
-    },
-    NameXor {
-        key: u8,
-    },
-    Pipeline(Vec<Xp3Decryptor>),
+    Pipeline(Vec<Xp3Plugin>),
     Custom {
-        scheme: Arc<dyn Xp3CryptScheme>,
+        scheme: Arc<dyn Xp3PluginScheme>,
     },
 }
 
-impl Xp3Decryptor {
-    fn decrypt_name_bytes(&self, bytes: &mut [u8]) {
-        match self {
-            Self::NameXor { key } => xor_bytes(bytes, *key),
-            Self::Pipeline(decryptors) => {
-                for decryptor in decryptors {
-                    decryptor.decrypt_name_bytes(bytes);
-                }
-            }
-            Self::Custom { scheme } => scheme.decrypt_name_bytes(bytes),
-            Self::None | Self::Xor { .. } | Self::XorAfterInflate { .. } => {}
-        }
+impl Xp3Plugin {
+    fn is_none(&self) -> bool {
+        matches!(self, Self::None)
     }
 
-    fn decrypt_segment_bytes(&self, bytes: &mut [u8], entry: &Xp3Entry, segment: &Xp3Segment) {
+    fn process_name_bytes(&self, bytes: &mut [u8]) -> Result<()> {
         match self {
-            Self::Xor { key } => xor_bytes(bytes, *key),
-            Self::Pipeline(decryptors) => {
-                for decryptor in decryptors {
-                    decryptor.decrypt_segment_bytes(bytes, entry, segment);
+            Self::Pipeline(plugins) => {
+                for plugin in plugins {
+                    plugin.process_name_bytes(bytes)?;
                 }
             }
-            Self::Custom { scheme } => scheme.decrypt_segment_bytes(bytes, entry, segment),
-            Self::None | Self::XorAfterInflate { .. } | Self::NameXor { .. } => {}
+            Self::Custom { scheme } => scheme.process_name_bytes(bytes)?,
+            Self::None => {}
         }
+        Ok(())
     }
 
-    fn decrypt_after_inflate(&self, bytes: &mut [u8]) {
+    fn process_segment_bytes(
+        &self,
+        bytes: &mut [u8],
+        entry: &Xp3Entry,
+        segment: &Xp3Segment,
+    ) -> Result<()> {
         match self {
-            Self::XorAfterInflate { key } => xor_bytes(bytes, *key),
-            Self::Pipeline(decryptors) => {
-                for decryptor in decryptors {
-                    decryptor.decrypt_after_inflate(bytes);
+            Self::Pipeline(plugins) => {
+                for plugin in plugins {
+                    plugin.process_segment_bytes(bytes, entry, segment)?;
                 }
             }
-            Self::None | Self::Xor { .. } | Self::NameXor { .. } | Self::Custom { .. } => {}
+            Self::Custom { scheme } => scheme.process_segment_bytes(bytes, entry, segment)?,
+            Self::None => {}
         }
+        Ok(())
+    }
+
+    fn process_after_inflate(
+        &self,
+        bytes: &mut [u8],
+        entry: &Xp3Entry,
+        segment: &Xp3Segment,
+    ) -> Result<()> {
+        match self {
+            Self::Pipeline(plugins) => {
+                for plugin in plugins {
+                    plugin.process_after_inflate(bytes, entry, segment)?;
+                }
+            }
+            Self::Custom { scheme } => scheme.process_after_inflate(bytes, entry, segment)?,
+            Self::None => {}
+        }
+        Ok(())
     }
 }
 
@@ -151,9 +175,9 @@ impl Xp3Archive {
     }
 
     pub fn read_entry(&self, entry: &Xp3Entry) -> Result<Vec<u8>> {
-        let archive = fs::read(&self.path)
-            .with_context(|| format!("failed to read {}", self.path.display()))?;
-        read_entry_from_bytes(&archive, entry, &self.options)
+        let mut archive = fs::File::open(&self.path)
+            .with_context(|| format!("failed to open {}", self.path.display()))?;
+        read_entry_from_file(&mut archive, entry, &self.options)
     }
 }
 
@@ -290,7 +314,7 @@ fn parse_file_chunk(
     let mut packed_size = 0;
     let mut checksum = None;
     let mut segments = Vec::new();
-    let mut encrypted = false;
+    let mut protected = false;
 
     while reader.remaining() >= CHUNK_HEADER_LEN {
         let section = reader.read_tag()?;
@@ -299,10 +323,10 @@ fn parse_file_chunk(
         match &section {
             b"info" => {
                 let mut info = ByteReader::new(section_bytes);
-                encrypted = info.read_u32()? != 0;
+                protected = info.read_u32()? != 0;
                 original_size = info.read_u64()?;
                 packed_size = info.read_u64()?;
-                name = Some(info.read_utf16_string(&options.decryptor)?);
+                name = Some(info.read_utf16_string(&options.plugin)?);
             }
             b"segm" => {
                 let mut segm = ByteReader::new(section_bytes);
@@ -339,7 +363,7 @@ fn parse_file_chunk(
 
     Ok(Some(Xp3Entry {
         name,
-        encrypted,
+        protected,
         original_size,
         packed_size,
         checksum,
@@ -347,26 +371,34 @@ fn parse_file_chunk(
     }))
 }
 
-fn read_entry_from_bytes(
-    archive: &[u8],
+fn read_entry_from_file(
+    archive: &mut fs::File,
     entry: &Xp3Entry,
     options: &Xp3Options,
 ) -> Result<Vec<u8>> {
+    if entry.protected && options.plugin.is_none() {
+        bail!(
+            "XP3 entry `{}` is protected and requires an external XP3 plugin",
+            entry.name
+        );
+    }
+
     let mut output = Vec::with_capacity(entry.original_size as usize);
     for segment in &entry.segments {
-        let start = segment.offset as usize;
-        let end = start
-            .checked_add(segment.packed_size as usize)
-            .context("XP3 segment size overflow")?;
-        if end > archive.len() {
-            bail!("XP3 segment for `{}` exceeds archive size", entry.name);
-        }
-
-        let mut segment_bytes = archive[start..end].to_vec();
-        if entry.encrypted {
+        archive
+            .seek(SeekFrom::Start(segment.offset))
+            .with_context(|| format!("failed to seek XP3 segment `{}`", entry.name))?;
+        let packed_size = usize::try_from(segment.packed_size)
+            .context("XP3 segment size does not fit in memory")?;
+        let mut segment_bytes = vec![0; packed_size];
+        archive
+            .read_exact(&mut segment_bytes)
+            .with_context(|| format!("failed to read XP3 segment `{}`", entry.name))?;
+        if entry.protected {
             options
-                .decryptor
-                .decrypt_segment_bytes(&mut segment_bytes, entry, segment);
+                .plugin
+                .process_segment_bytes(&mut segment_bytes, entry, segment)
+                .with_context(|| format!("XP3 plugin failed on segment `{}`", entry.name))?;
         }
 
         if segment.compressed {
@@ -378,21 +410,23 @@ fn read_entry_from_bytes(
             if output.len() - before != segment.original_size as usize {
                 bail!("XP3 segment unpacked size mismatch for `{}`", entry.name);
             }
-            if entry.encrypted {
+            if entry.protected {
                 options
-                    .decryptor
-                    .decrypt_after_inflate(&mut output[before..]);
+                    .plugin
+                    .process_after_inflate(&mut output[before..], entry, segment)
+                    .with_context(|| format!("XP3 plugin failed on `{}`", entry.name))?;
             }
         } else {
             if segment.original_size != segment.packed_size {
                 bail!("stored XP3 segment size mismatch for `{}`", entry.name);
             }
             output.extend_from_slice(&segment_bytes);
-            if entry.encrypted {
+            if entry.protected {
                 let start = output.len() - segment_bytes.len();
                 options
-                    .decryptor
-                    .decrypt_after_inflate(&mut output[start..]);
+                    .plugin
+                    .process_after_inflate(&mut output[start..], entry, segment)
+                    .with_context(|| format!("XP3 plugin failed on `{}`", entry.name))?;
             }
         }
     }
@@ -401,12 +435,6 @@ fn read_entry_from_bytes(
         bail!("XP3 entry size mismatch for `{}`", entry.name);
     }
     Ok(output)
-}
-
-fn xor_bytes(bytes: &mut [u8], key: u8) {
-    for byte in bytes {
-        *byte ^= key;
-    }
 }
 
 fn read_u64_at_file(file: &mut fs::File, offset: u64) -> Result<u64> {
@@ -475,13 +503,15 @@ impl<'a> ByteReader<'a> {
         ))
     }
 
-    fn read_utf16_string(&mut self, decryptor: &Xp3Decryptor) -> Result<String> {
+    fn read_utf16_string(&mut self, plugin: &Xp3Plugin) -> Result<String> {
         let char_count = self.read_u16()? as usize;
         let raw_len = char_count
             .checked_mul(2)
             .context("XP3 UTF-16 name length overflow")?;
         let mut raw = self.read_bytes(raw_len)?.to_vec();
-        decryptor.decrypt_name_bytes(&mut raw);
+        plugin
+            .process_name_bytes(&mut raw)
+            .context("XP3 plugin failed on file name")?;
         let mut chars = Vec::with_capacity(char_count);
         for chunk in raw.chunks_exact(2) {
             chars.push(u16::from_le_bytes(
@@ -542,86 +572,6 @@ mod tests {
         assert_eq!(
             archive.read_file("IMAGE\\BG.PNG").unwrap(),
             b"fake png payload"
-        );
-
-        let _ = fs::remove_dir_all(root);
-    }
-
-    #[test]
-    fn xp3_reads_xor_encrypted_segment() {
-        let root = test_dir("suzu-xp3-xor");
-        fs::create_dir_all(&root).unwrap();
-        let path = root.join("encrypted.xp3");
-        write_test_xp3_with_encryption(&path, "voice/line.ogg", b"voice bytes", 0x5a);
-
-        let archive = Xp3Archive::from_file_with_options(
-            &path,
-            Xp3Options {
-                decryptor: Xp3Decryptor::Xor { key: 0x5a },
-            },
-        )
-        .unwrap();
-
-        assert!(archive.entries()[0].encrypted);
-        assert_eq!(archive.read_file("voice/line.ogg").unwrap(), b"voice bytes");
-
-        let _ = fs::remove_dir_all(root);
-    }
-
-    #[test]
-    fn xp3_reads_xor_after_inflate_segment() {
-        let root = test_dir("suzu-xp3-xor-after-inflate");
-        fs::create_dir_all(&root).unwrap();
-        let path = root.join("encrypted-compressed.xp3");
-        write_test_xp3_with_post_inflate_encryption(
-            &path,
-            "main/custom.ks",
-            b"@jump target=*start",
-            0x5a,
-        );
-
-        let archive = Xp3Archive::from_file_with_options(
-            &path,
-            Xp3Options {
-                decryptor: Xp3Decryptor::XorAfterInflate { key: 0x5a },
-            },
-        )
-        .unwrap();
-
-        assert!(archive.entries()[0].encrypted);
-        assert_eq!(
-            archive.read_file("main/custom.ks").unwrap(),
-            b"@jump target=*start"
-        );
-
-        let _ = fs::remove_dir_all(root);
-    }
-
-    #[test]
-    fn xp3_reads_pipeline_decryptor() {
-        let root = test_dir("suzu-xp3-pipeline");
-        fs::create_dir_all(&root).unwrap();
-        let path = root.join("encrypted-compressed.xp3");
-        write_test_xp3_with_post_inflate_encryption(
-            &path,
-            "main/pipeline.ks",
-            b"@wait time=100",
-            0x90,
-        );
-
-        let archive = Xp3Archive::from_file_with_options(
-            &path,
-            Xp3Options {
-                decryptor: Xp3Decryptor::Pipeline(vec![Xp3Decryptor::XorAfterInflate {
-                    key: 0x90,
-                }]),
-            },
-        )
-        .unwrap();
-
-        assert_eq!(
-            archive.read_file("main/pipeline.ks").unwrap(),
-            b"@wait time=100"
         );
 
         let _ = fs::remove_dir_all(root);
@@ -710,41 +660,6 @@ mod tests {
         fs::write(path, bytes).unwrap();
     }
 
-    fn write_test_xp3_with_encryption(path: &Path, name: &str, data: &[u8], key: u8) {
-        let mut segment = data.to_vec();
-        xor_bytes(&mut segment, key);
-        let segment_offset = XP3_HEADER_LEN as u64;
-        let index_offset = segment_offset + segment.len() as u64;
-        let index =
-            build_index_with_encryption(name, data.len() as u64, &segment, segment_offset, false);
-
-        let mut bytes = XP3_MAGIC.to_vec();
-        bytes.extend_from_slice(&index_offset.to_le_bytes());
-        bytes.extend_from_slice(&segment);
-        bytes.push(INDEX_KIND_RAW);
-        bytes.extend_from_slice(&(index.len() as u64).to_le_bytes());
-        bytes.extend_from_slice(&index);
-        fs::write(path, bytes).unwrap();
-    }
-
-    fn write_test_xp3_with_post_inflate_encryption(path: &Path, name: &str, data: &[u8], key: u8) {
-        let mut decrypted = data.to_vec();
-        xor_bytes(&mut decrypted, key);
-        let segment = zlib(&decrypted);
-        let segment_offset = XP3_HEADER_LEN as u64;
-        let index_offset = segment_offset + segment.len() as u64;
-        let index =
-            build_index_with_encryption(name, data.len() as u64, &segment, segment_offset, true);
-
-        let mut bytes = XP3_MAGIC.to_vec();
-        bytes.extend_from_slice(&index_offset.to_le_bytes());
-        bytes.extend_from_slice(&segment);
-        bytes.push(INDEX_KIND_RAW);
-        bytes.extend_from_slice(&(index.len() as u64).to_le_bytes());
-        bytes.extend_from_slice(&index);
-        fs::write(path, bytes).unwrap();
-    }
-
     fn build_index(
         name: &str,
         original_size: u64,
@@ -754,38 +669,6 @@ mod tests {
     ) -> Vec<u8> {
         let mut info = Vec::new();
         info.extend_from_slice(&0_u32.to_le_bytes());
-        info.extend_from_slice(&original_size.to_le_bytes());
-        info.extend_from_slice(&(packed_segment.len() as u64).to_le_bytes());
-        let name_utf16 = name.encode_utf16().collect::<Vec<_>>();
-        info.extend_from_slice(&(name_utf16.len() as u16).to_le_bytes());
-        for ch in name_utf16 {
-            info.extend_from_slice(&ch.to_le_bytes());
-        }
-
-        let mut segm = Vec::new();
-        segm.extend_from_slice(&(u32::from(compressed_segment)).to_le_bytes());
-        segm.extend_from_slice(&segment_offset.to_le_bytes());
-        segm.extend_from_slice(&original_size.to_le_bytes());
-        segm.extend_from_slice(&(packed_segment.len() as u64).to_le_bytes());
-
-        let mut file = Vec::new();
-        push_chunk(&mut file, b"info", &info);
-        push_chunk(&mut file, b"segm", &segm);
-
-        let mut index = Vec::new();
-        push_chunk(&mut index, b"File", &file);
-        index
-    }
-
-    fn build_index_with_encryption(
-        name: &str,
-        original_size: u64,
-        packed_segment: &[u8],
-        segment_offset: u64,
-        compressed_segment: bool,
-    ) -> Vec<u8> {
-        let mut info = Vec::new();
-        info.extend_from_slice(&1_u32.to_le_bytes());
         info.extend_from_slice(&original_size.to_le_bytes());
         info.extend_from_slice(&(packed_segment.len() as u64).to_le_bytes());
         let name_utf16 = name.encode_utf16().collect::<Vec<_>>();

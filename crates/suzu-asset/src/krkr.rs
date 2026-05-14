@@ -9,25 +9,7 @@ use crate::Xp3Archive;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct KrkrCompatibilityReport {
-    pub packinone: Option<PackinOneReport>,
-    pub lose_emote_psb: Option<LoseEmotePsbReport>,
     pub archives: Vec<KrkrArchiveReport>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PackinOneReport {
-    pub dll_path: PathBuf,
-    pub uses_chacha_filter: bool,
-    pub exposes_load_data_pack: bool,
-    pub exposes_packinone_list: bool,
-    pub exposes_cryptmode: bool,
-    pub exposes_outeriv: bool,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LoseEmotePsbReport {
-    pub dll_path: PathBuf,
-    pub randomizer_seed: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,16 +17,16 @@ pub struct KrkrArchiveReport {
     pub path: PathBuf,
     pub entries: usize,
     pub script_entries: usize,
-    pub encrypted_script_entries: usize,
+    pub protected_script_entries: usize,
     pub entrypoint_candidates: Vec<String>,
     pub parse_error: Option<String>,
 }
 
 impl KrkrCompatibilityReport {
-    pub fn encrypted_script_entries(&self) -> usize {
+    pub fn protected_script_entries(&self) -> usize {
         self.archives
             .iter()
-            .map(|archive| archive.encrypted_script_entries)
+            .map(|archive| archive.protected_script_entries)
             .sum()
     }
 
@@ -55,57 +37,16 @@ impl KrkrCompatibilityReport {
             .sum()
     }
 
-    pub fn has_packinone_blocker(&self) -> bool {
-        self.packinone.is_some() && self.encrypted_script_entries() > 0
+    pub fn has_protected_entries(&self) -> bool {
+        self.protected_script_entries() > 0
     }
 }
 
 pub fn probe_krkr_directory(root: impl AsRef<Path>) -> Result<KrkrCompatibilityReport> {
     let root = root.as_ref();
-    let plugin_dir = root.join("plugin");
-    let packinone_path = plugin_dir.join("PackinOne.dll");
-    let emote_driver_path = root.join("emotedriver.dll");
-
-    let packinone = if packinone_path.exists() {
-        let bytes = fs::read(&packinone_path)
-            .with_context(|| format!("failed to read {}", packinone_path.display()))?;
-        Some(PackinOneReport {
-            dll_path: packinone_path,
-            uses_chacha_filter: contains_ascii_or_utf16le(&bytes, "ChaCha")
-                || contains_ascii_or_utf16le(&bytes, "BasicCryptFilter"),
-            exposes_load_data_pack: contains_ascii_or_utf16le(&bytes, "loadDataPack"),
-            exposes_packinone_list: contains_ascii_or_utf16le(&bytes, "PackinOneList"),
-            exposes_cryptmode: contains_ascii_or_utf16le(&bytes, "cryptmode"),
-            exposes_outeriv: contains_ascii_or_utf16le(&bytes, "outeriv"),
-        })
-    } else {
-        None
-    };
-
-    let lose_emote_psb = if emote_driver_path.exists() {
-        let bytes = fs::read(&emote_driver_path)
-            .with_context(|| format!("failed to read {}", emote_driver_path.display()))?;
-        if contains_ascii_or_utf16le(&bytes, "#cryptkey#")
-            || contains_ascii_or_utf16le(&bytes, "391022973")
-        {
-            Some(LoseEmotePsbReport {
-                dll_path: emote_driver_path,
-                randomizer_seed: 391_022_973,
-            })
-        } else {
-            None
-        }
-    } else {
-        None
-    };
-
     let archives = scan_krkr_archives(root)?;
 
-    Ok(KrkrCompatibilityReport {
-        packinone,
-        lose_emote_psb,
-        archives,
-    })
+    Ok(KrkrCompatibilityReport { archives })
 }
 
 fn scan_krkr_archives(root: &Path) -> Result<Vec<KrkrArchiveReport>> {
@@ -127,7 +68,7 @@ fn scan_krkr_archives(root: &Path) -> Result<Vec<KrkrArchiveReport>> {
                     path,
                     entries: 0,
                     script_entries: 0,
-                    encrypted_script_entries: 0,
+                    protected_script_entries: 0,
                     entrypoint_candidates: Vec::new(),
                     parse_error: Some(format!("{error:#}")),
                 });
@@ -140,9 +81,9 @@ fn scan_krkr_archives(root: &Path) -> Result<Vec<KrkrArchiveReport>> {
             .iter()
             .filter(|entry| krkr_script_like_entry(&entry.name))
             .collect::<Vec<_>>();
-        let encrypted_script_entries = script_entries
+        let protected_script_entries = script_entries
             .iter()
-            .filter(|entry| entry.encrypted)
+            .filter(|entry| entry.protected)
             .count();
         let mut entrypoint_candidates = script_entries
             .iter()
@@ -156,7 +97,7 @@ fn scan_krkr_archives(root: &Path) -> Result<Vec<KrkrArchiveReport>> {
             path,
             entries: archive.entries().len(),
             script_entries: script_entries.len(),
-            encrypted_script_entries,
+            protected_script_entries,
             entrypoint_candidates,
             parse_error: None,
         });
@@ -196,36 +137,9 @@ fn krkr_entry_looks_like_entrypoint(path: &str) -> bool {
     ) || normalized.ends_with("/startup.tjs")
 }
 
-fn contains_ascii_or_utf16le(bytes: &[u8], needle: &str) -> bool {
-    let utf16le = utf16le_bytes(needle);
-    bytes
-        .windows(needle.len())
-        .any(|window| window == needle.as_bytes())
-        || bytes
-            .windows(utf16le.len())
-            .any(|window| window == utf16le.as_slice())
-}
-
-fn utf16le_bytes(value: &str) -> Vec<u8> {
-    value
-        .encode_utf16()
-        .flat_map(u16::to_le_bytes)
-        .collect::<Vec<_>>()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn finds_ascii_and_utf16le_needles() {
-        assert!(contains_ascii_or_utf16le(b"before ChaCha after", "ChaCha"));
-        assert!(contains_ascii_or_utf16le(
-            &utf16le_bytes("loadDataPack"),
-            "loadDataPack"
-        ));
-        assert!(!contains_ascii_or_utf16le(b"plain", "PackinOne"));
-    }
 
     #[test]
     fn recognizes_krkr_script_like_entries() {

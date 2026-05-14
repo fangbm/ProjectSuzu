@@ -7,8 +7,25 @@ on:
   workflow_dispatch:
 
 jobs:
+  quality:
+    name: Quality gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+      - run: cargo doc --workspace --no-deps
+      - run: cargo test -p suzu-script --features lua
+      - shell: pwsh
+        run: ./scripts/package-desktop.ps1 -Check
+
   build:
     name: Build ${{ matrix.os }}
+    needs: quality
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -20,9 +37,6 @@ jobs:
           - os: windows-latest
             artifact: project-suzu-windows-x64
             exe: ".exe"
-          - os: macos-latest
-            artifact: project-suzu-macos-x64
-            exe: ""
 
     steps:
       - uses: actions/checkout@v4
@@ -59,6 +73,7 @@ jobs:
           Copy-Item docs/implementation-checklist.md dist/docs/implementation-checklist.md
           Copy-Item docs/user-guide.md dist/docs/user-guide.md
           Copy-Item docs/scripting-reference.md dist/docs/scripting-reference.md
+          Copy-Item docs/xp3-support.md dist/docs/xp3-support.md
           Copy-Item docs/visual-script-editor-development-plan.md dist/docs/visual-script-editor-development-plan.md
           Copy-Item docs/release-packaging.md dist/docs/release-packaging.md
           Copy-Item docs/developer-checks.md dist/docs/developer-checks.md

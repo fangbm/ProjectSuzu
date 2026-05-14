@@ -9,9 +9,7 @@ use std::{
 
 use eframe::egui;
 use suzu_app::{GameConfig, SuzuApp, TitleScreenConfig};
-use suzu_asset::{
-    AssetType, DecryptModule, TextureAsset, Xp3Archive, Xp3Decryptor, Xp3Entry, Xp3Options,
-};
+use suzu_asset::{AssetType, TextureAsset, Xp3Archive, Xp3Entry, Xp3Options, Xp3PluginModule};
 use suzu_platform::{DesktopApp, DesktopFrame, DesktopInputEvent, FrameSprite, FrameText};
 
 fn main() -> eframe::Result<()> {
@@ -35,9 +33,7 @@ fn main() -> eframe::Result<()> {
 
 struct Xp3ViewerApp {
     xp3_path: String,
-    xor_enabled: bool,
-    xor_key: String,
-    decrypt_module_path: String,
+    xp3_plugin_path: String,
     archive: Option<Xp3Archive>,
     entries: Vec<EntryRow>,
     selected: Option<usize>,
@@ -50,7 +46,7 @@ struct Xp3ViewerApp {
 struct EntryRow {
     name: String,
     kind: AssetType,
-    encrypted: bool,
+    protected: bool,
     original_size: u64,
     packed_size: u64,
 }
@@ -90,9 +86,7 @@ impl Xp3ViewerApp {
         install_cjk_fonts(&cc.egui_ctx);
         let mut app = Self {
             xp3_path: initial_path,
-            xor_enabled: false,
-            xor_key: "5A".to_owned(),
-            decrypt_module_path: String::new(),
+            xp3_plugin_path: String::new(),
             archive: None,
             entries: Vec::new(),
             selected: None,
@@ -151,23 +145,13 @@ impl Xp3ViewerApp {
     }
 
     fn xp3_options(&self) -> Result<Xp3Options, String> {
-        let module_path = clean_path_input(&self.decrypt_module_path);
+        let module_path = clean_path_input(&self.xp3_plugin_path);
         if !module_path.is_empty() {
-            let module = DecryptModule::from_json_file(&module_path)
-                .map_err(|error| format!("Failed to load decrypt module: {error:#}"))?;
+            let module = Xp3PluginModule::from_json_file(&module_path)
+                .map_err(|error| format!("Failed to load XP3 plugin module: {error:#}"))?;
             return Ok(module.xp3_options());
         }
-        if !self.xor_enabled {
-            return Ok(Xp3Options::default());
-        }
-
-        let key_text = self.xor_key.trim().trim_start_matches("0x");
-        let key = u8::from_str_radix(key_text, 16)
-            .or_else(|_| self.xor_key.trim().parse::<u8>())
-            .map_err(|_| "XOR key must be a byte, for example 5A or 90.".to_owned())?;
-        Ok(Xp3Options {
-            decryptor: Xp3Decryptor::Xor { key },
-        })
+        Ok(Xp3Options::default())
     }
 
     fn select_entry(&mut self, ctx: &egui::Context, index: usize) {
@@ -316,14 +300,8 @@ impl Xp3ViewerApp {
             }
         });
         ui.horizontal(|ui| {
-            ui.checkbox(&mut self.xor_enabled, "XOR encrypted segments");
-            ui.add_enabled(
-                self.xor_enabled && self.decrypt_module_path.trim().is_empty(),
-                egui::TextEdit::singleline(&mut self.xor_key).desired_width(60.0),
-            );
-            ui.separator();
-            ui.label("Decrypt module");
-            ui.text_edit_singleline(&mut self.decrypt_module_path);
+            ui.label("XP3 plugin");
+            ui.text_edit_singleline(&mut self.xp3_plugin_path);
             ui.separator();
             ui.label(&self.status);
         });
@@ -338,7 +316,7 @@ impl Xp3ViewerApp {
             let mut clicked = None;
             for (index, row) in self.entries.iter().enumerate() {
                 let selected = self.selected == Some(index);
-                let marker = if row.encrypted { "locked" } else { "plain" };
+                let marker = if row.protected { "locked" } else { "plain" };
                 let label = format!(
                     "{:?} · {} · {} / {} bytes · {}",
                     row.kind, marker, row.packed_size, row.original_size, row.name
@@ -515,7 +493,7 @@ impl From<&Xp3Entry> for EntryRow {
         Self {
             name: entry.name.clone(),
             kind: asset_type_from_path(&entry.name),
-            encrypted: entry.encrypted,
+            protected: entry.protected,
             original_size: entry.original_size,
             packed_size: entry.packed_size,
         }

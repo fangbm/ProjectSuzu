@@ -26,7 +26,7 @@ resolver = "2"
 [workspace.package]
 edition = "2021"
 license = "MIT OR Apache-2.0"
-repository = "https://example.invalid/project-suzu"
+repository = "https://github.com/fangbm/ProjectSuzu"
 rust-version = "1.78"
 
 [workspace.dependencies]

@@ -16,6 +16,7 @@ $docFiles = @(
     "docs/implementation-checklist.md",
     "docs/user-guide.md",
     "docs/scripting-reference.md",
+    "docs/xp3-support.md",
     "docs/visual-script-editor-development-plan.md",
     "docs/release-packaging.md",
     "docs/developer-checks.md",
