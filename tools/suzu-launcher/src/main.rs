@@ -1,49 +1,39 @@
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
-use std::{
-    collections::{HashMap, HashSet, VecDeque},
-    ffi::OsString,
-    fs,
-    path::{Path, PathBuf},
-    time::Instant,
-};
+mod cli;
+mod conversion;
+mod paths;
+mod preview;
 
-use anyhow::{bail, Context};
+use std::{fs, path::PathBuf, time::Instant};
+
 use eframe::egui;
-use encoding_rs::{SHIFT_JIS, UTF_16BE, UTF_16LE};
-use suzu_app::{GameConfig, SuzuApp, TitleScreenConfig};
 use suzu_asset::{
     probe_krkr_directory, AssetType, KrkrCompatibilityReport, Xp3Archive, Xp3Entry, Xp3Options,
     Xp3PluginModule,
 };
-use suzu_editor_core::{convert_krkr_ks_to_szs, ProjectIndex};
-use suzu_platform::{DesktopApp, DesktopFrame, DesktopInputEvent, FrameSprite, FrameText};
-use suzu_script::CURRENT_SCRIPT_FORMAT_VERSION;
+use suzu_editor_core::ProjectIndex;
+use suzu_platform::{DesktopApp, DesktopInputEvent};
+
+use crate::cli::{CliAction, XP3_PLUGIN_AUTHORIZATION_MESSAGE};
+use crate::conversion::{convert_krkr_package_to_suzu_project, krkr_entry_looks_like_entrypoint};
+use crate::paths::{
+    asset_id_from_path, asset_type_from_path, clean_path_input, default_krkr_output_path,
+    xp3_path_from_input,
+};
+use crate::preview::{fit_size, install_cjk_fonts, preview_app, render_frame, GamePreview};
 
 fn main() -> eframe::Result<()> {
     let args = std::env::args_os().skip(1).collect::<Vec<_>>();
-    if args
-        .first()
-        .and_then(|arg| arg.to_str())
-        .is_some_and(|arg| arg == "--krkr2suzu")
-    {
-        if let Err(error) = run_krkr2suzu_cli(&args[1..]) {
-            eprintln!("krkr2suzu failed: {error:#}");
+    let initial = match cli::dispatch(&args) {
+        Ok(CliAction::Handled) => return Ok(()),
+        Ok(CliAction::LaunchGui { initial }) => initial,
+        Err(error) => {
+            eprintln!("{error:#}");
+            return Ok(());
         }
-        return Ok(());
-    }
-    if args
-        .first()
-        .and_then(|arg| arg.to_str())
-        .is_some_and(|arg| arg == "--krkr-probe")
-    {
-        if let Err(error) = run_krkr_probe_cli(&args[1..]) {
-            eprintln!("krkr-probe failed: {error:#}");
-        }
-        return Ok(());
-    }
+    };
 
-    let initial = args.first().map(PathBuf::from).unwrap_or_default();
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_inner_size([1220.0, 760.0]),
         ..Default::default()
@@ -56,266 +46,6 @@ fn main() -> eframe::Result<()> {
     )
 }
 
-fn run_krkr2suzu_cli(args: &[OsString]) -> anyhow::Result<()> {
-    if args.len() < 2 {
-        bail!(
-            "usage: suzu-launcher --krkr2suzu <krkr-folder> <output-folder> [--xp3-plugin <module.json>]"
-        );
-    }
-    let root = PathBuf::from(&args[0]);
-    let output = PathBuf::from(&args[1]);
-    let mut options = vec![Xp3Options::default()];
-    let mut index = 2;
-    while index < args.len() {
-        match args[index].to_string_lossy().as_ref() {
-            "--xp3-plugin" if index + 1 < args.len() => {
-                let module = Xp3PluginModule::from_json_file(PathBuf::from(&args[index + 1]))?;
-                options = vec![module.xp3_options()];
-                index += 2;
-            }
-            other => bail!("unknown krkr2suzu option `{other}`"),
-        }
-    }
-
-    let summary = convert_krkr_package_to_suzu_project(&root, &output, &options)?;
-    println!(
-        "Converted {} scripts ({} unreadable) to {} from {} lines, {} commands, {} choices.",
-        summary.scripts,
-        summary.unreadable,
-        summary.script_path.display(),
-        summary.lines,
-        summary.commands,
-        summary.choices
-    );
-    Ok(())
-}
-
-fn run_krkr_probe_cli(args: &[OsString]) -> anyhow::Result<()> {
-    let Some(root) = args.first() else {
-        bail!("usage: suzu-launcher --krkr-probe <krkr-folder>");
-    };
-    let report = probe_krkr_directory(PathBuf::from(root))?;
-    println!(
-        "KRKR archives: {} archives, {} script-like entries, {} protected script-like entries",
-        report.archives.len(),
-        report.script_entries(),
-        report.protected_script_entries()
-    );
-    if report.has_protected_entries() {
-        println!(
-            "Compatibility: direct Suzu playback requires an external XP3 plugin for this package."
-        );
-    }
-    for archive in &report.archives {
-        let name = archive
-            .path
-            .file_name()
-            .and_then(|name| name.to_str())
-            .unwrap_or("<xp3>");
-        if let Some(error) = &archive.parse_error {
-            println!("  {name}: parse error: {error}");
-            continue;
-        }
-        println!(
-            "  {name}: {} entries, {} script-like, {} protected",
-            archive.entries, archive.script_entries, archive.protected_script_entries
-        );
-        if !archive.entrypoint_candidates.is_empty() {
-            println!(
-                "    entrypoint candidates: {}",
-                archive.entrypoint_candidates.join(", ")
-            );
-        }
-    }
-    Ok(())
-}
-
-#[derive(Debug, Clone)]
-struct KrkrConversionSummary {
-    script_path: PathBuf,
-    scripts: usize,
-    unreadable: usize,
-    lines: usize,
-    commands: usize,
-    choices: usize,
-}
-
-fn convert_krkr_package_to_suzu_project(
-    root: &Path,
-    output_root: &Path,
-    option_candidates: &[Xp3Options],
-) -> anyhow::Result<KrkrConversionSummary> {
-    let compatibility = probe_krkr_directory(root).ok();
-    let script_dir = output_root.join("script");
-    fs::create_dir_all(&script_dir)
-        .with_context(|| format!("failed to create {}", script_dir.display()))?;
-
-    let mut archive_candidates = Vec::<Vec<Xp3Archive>>::new();
-    let mut script_locations = HashMap::<String, (usize, String)>::new();
-    let mut entrypoints = Vec::<String>::new();
-    let mut fallback_scripts = Vec::<String>::new();
-
-    for entry in fs::read_dir(root).with_context(|| format!("failed to scan {}", root.display()))? {
-        let path = entry?.path();
-        if !path
-            .extension()
-            .and_then(|extension| extension.to_str())
-            .is_some_and(|extension| extension.eq_ignore_ascii_case("xp3"))
-        {
-            continue;
-        }
-        let base_archive = match Xp3Archive::from_file_with_options(&path, Xp3Options::default()) {
-            Ok(archive) => archive,
-            Err(_) => continue,
-        };
-        let candidates = option_candidates
-            .iter()
-            .map(|options| base_archive.clone().with_options(options.clone()))
-            .collect::<Vec<_>>();
-        let Some(first_archive) = candidates.first() else {
-            continue;
-        };
-        let archive_index = archive_candidates.len();
-        let mut entries = first_archive
-            .entries()
-            .iter()
-            .filter(|entry| script_extension_is(&entry.name, "ks"))
-            .map(|entry| entry.name.clone())
-            .collect::<Vec<_>>();
-        entries.sort_by_key(|name| {
-            (
-                !krkr_entry_looks_like_entrypoint(name),
-                name.to_ascii_lowercase(),
-            )
-        });
-
-        for name in entries {
-            for alias in krkr_script_lookup_keys(&name) {
-                script_locations.insert(alias, (archive_index, name.clone()));
-            }
-            if krkr_entry_looks_like_entrypoint(&name) {
-                entrypoints.push(name.clone());
-            }
-            fallback_scripts.push(name);
-        }
-        archive_candidates.push(candidates);
-    }
-
-    if script_locations.is_empty() {
-        bail!("no .ks scripts found");
-    }
-
-    entrypoints.sort_by_key(|name| {
-        (
-            !krkr_entry_looks_like_entrypoint(name),
-            name.to_ascii_lowercase(),
-        )
-    });
-    let roots = if entrypoints.is_empty() {
-        fallback_scripts.into_iter().take(1).collect::<Vec<_>>()
-    } else {
-        entrypoints
-    };
-
-    let mut scripts = Vec::<(String, Vec<u8>)>::new();
-    let mut unreadable = 0usize;
-    let mut queue = roots.into_iter().collect::<VecDeque<_>>();
-    let mut visited = HashSet::<String>::new();
-    while let Some(script_name) = queue.pop_front() {
-        let lookup_key = normalize_krkr_script_key(&script_name);
-        if !visited.insert(lookup_key.clone()) {
-            continue;
-        }
-        if visited.len() > 512 {
-            break;
-        }
-
-        let Some((archive_index, entry_name)) = script_locations.get(&lookup_key) else {
-            continue;
-        };
-        let Some(bytes) = read_best_krkr_script(&archive_candidates[*archive_index], entry_name)
-        else {
-            unreadable += 1;
-            continue;
-        };
-
-        let source = decode_krkr_text(&bytes);
-        for reference in krkr_script_references(&source, entry_name) {
-            if let Some((_, resolved_name)) =
-                script_locations.get(&normalize_krkr_script_key(&reference))
-            {
-                queue.push_back(resolved_name.clone());
-            }
-        }
-        scripts.push((entry_name.clone(), bytes));
-    }
-
-    if scripts.is_empty() {
-        bail!("no readable .ks scripts found");
-    }
-
-    scripts.sort_by_key(|(name, _)| {
-        (
-            !krkr_entry_looks_like_entrypoint(name),
-            name.to_ascii_lowercase(),
-        )
-    });
-    scripts.dedup_by(|(left, _), (right, _)| left.eq_ignore_ascii_case(right));
-
-    let mut output = format!(
-        "@script version={CURRENT_SCRIPT_FORMAT_VERSION}\n; Converted from KRKR/KAG package: {}\n",
-        root.display()
-    );
-    let mut total_lines = 0usize;
-    let mut total_commands = 0usize;
-    let mut total_choices = 0usize;
-    for (entry_name, bytes) in &scripts {
-        let source = decode_krkr_text(bytes);
-        let converted = convert_krkr_ks_to_szs(&source, Some(entry_name));
-        total_lines += converted.report.lines_read;
-        total_commands += converted.report.commands_converted;
-        total_choices += converted.report.choices;
-        output.push('\n');
-        for label in krkr_script_labels(entry_name) {
-            output.push_str(&format!("*{label}\n"));
-        }
-        for line in converted.source.lines() {
-            if line.trim_start().starts_with("@script ") {
-                continue;
-            }
-            output.push_str(line);
-            output.push('\n');
-        }
-    }
-
-    if total_commands == 0
-        && compatibility
-            .as_ref()
-            .is_some_and(KrkrCompatibilityReport::has_protected_entries)
-    {
-        let protected_scripts = compatibility
-            .as_ref()
-            .map_or(0, KrkrCompatibilityReport::protected_script_entries);
-        bail!(
-            "decoded KRKR scripts contain no KAG commands; this package has {protected_scripts} protected script-like entries. Run `suzu-launcher --krkr-probe <folder>` for details."
-        );
-    }
-
-    suzu_script::compile_script(&output).context("converted KRKR startup flow did not compile")?;
-    let script_path = script_dir.join("main.szs");
-    fs::write(&script_path, output)
-        .with_context(|| format!("failed to write {}", script_path.display()))?;
-
-    Ok(KrkrConversionSummary {
-        script_path,
-        scripts: scripts.len(),
-        unreadable,
-        lines: total_lines,
-        commands: total_commands,
-        choices: total_choices,
-    })
-}
-
 struct LauncherApp {
     project_path: String,
     project: Option<ProjectIndex>,
@@ -324,6 +54,7 @@ struct LauncherApp {
     krkr_path: String,
     krkr_output_path: String,
     xp3_plugin_path: String,
+    xp3_plugin_authorized: bool,
     krkr_report: Option<KrkrPackageReport>,
     krkr_compatibility: Option<KrkrCompatibilityReport>,
     xp3_entries: Vec<EntryRow>,
@@ -360,13 +91,6 @@ struct KrkrArchiveSummary {
     error: Option<String>,
 }
 
-struct GamePreview {
-    app: SuzuApp,
-    label: String,
-    textures: HashMap<String, egui::TextureHandle>,
-    last_frame: Instant,
-}
-
 impl LauncherApp {
     fn new(cc: &eframe::CreationContext<'_>, initial: PathBuf) -> Self {
         install_cjk_fonts(&cc.egui_ctx);
@@ -378,6 +102,7 @@ impl LauncherApp {
             krkr_path: String::new(),
             krkr_output_path: String::new(),
             xp3_plugin_path: String::new(),
+            xp3_plugin_authorized: false,
             krkr_report: None,
             krkr_compatibility: None,
             xp3_entries: Vec::new(),
@@ -607,6 +332,7 @@ impl LauncherApp {
         if module_path.is_empty() {
             return Ok(Xp3Options::default());
         }
+        self.ensure_xp3_plugin_authorized()?;
         let module = Xp3PluginModule::from_json_file(&module_path)
             .map_err(|error| format!("Failed to load XP3 plugin module: {error:#}"))?;
         Ok(module.xp3_options())
@@ -614,6 +340,29 @@ impl LauncherApp {
 
     fn xp3_option_candidates(&self) -> Result<Vec<Xp3Options>, String> {
         self.xp3_options().map(|options| vec![options])
+    }
+
+    fn xp3_plugin_requires_authorization(&self) -> bool {
+        !clean_path_input(&self.xp3_plugin_path).is_empty()
+    }
+
+    fn ensure_xp3_plugin_authorized(&self) -> Result<(), String> {
+        if self.xp3_plugin_requires_authorization() && !self.xp3_plugin_authorized {
+            return Err(XP3_PLUGIN_AUTHORIZATION_MESSAGE.to_owned());
+        }
+        Ok(())
+    }
+
+    fn xp3_plugin_authorization_ui(&mut self, ui: &mut egui::Ui) {
+        if self.xp3_plugin_requires_authorization() {
+            ui.checkbox(
+                &mut self.xp3_plugin_authorized,
+                "I have rights to process these assets",
+            );
+            ui.label(XP3_PLUGIN_AUTHORIZATION_MESSAGE);
+        } else {
+            self.xp3_plugin_authorized = false;
+        }
     }
 
     fn start_project_script(&mut self) {
@@ -779,6 +528,7 @@ impl LauncherApp {
                 self.start_xp3_script();
             }
         });
+        self.xp3_plugin_authorization_ui(ui);
 
         ui.separator();
         ui.label(format!("{} entries", self.xp3_entries.len()));
@@ -962,17 +712,6 @@ impl eframe::App for LauncherApp {
     }
 }
 
-impl GamePreview {
-    fn new(app: SuzuApp, label: String) -> Self {
-        Self {
-            app,
-            label,
-            textures: HashMap::new(),
-            last_frame: Instant::now(),
-        }
-    }
-}
-
 impl From<&Xp3Entry> for EntryRow {
     fn from(entry: &Xp3Entry) -> Self {
         Self {
@@ -981,398 +720,5 @@ impl From<&Xp3Entry> for EntryRow {
             protected: entry.protected,
             original_size: entry.original_size,
         }
-    }
-}
-
-fn preview_app(subtitle: &str) -> SuzuApp {
-    SuzuApp::new(GameConfig {
-        title_screen: TitleScreenConfig {
-            enabled: false,
-            title: "Project Suzu".to_owned(),
-            subtitle: subtitle.to_owned(),
-        },
-        ..GameConfig::default()
-    })
-}
-
-fn asset_type_from_path(path: &str) -> AssetType {
-    match Path::new(path)
-        .extension()
-        .and_then(|extension| extension.to_str())
-        .map(str::to_ascii_lowercase)
-        .as_deref()
-    {
-        Some("png" | "jpg" | "jpeg" | "webp") => AssetType::Texture,
-        Some("ogg" | "wav" | "mp3" | "flac") => AssetType::Audio,
-        Some("szs" | "ks" | "tjs" | "txt") => AssetType::Script,
-        Some("ttf" | "otf") => AssetType::Font,
-        Some(_) => AssetType::Data,
-        None => AssetType::Unknown,
-    }
-}
-
-fn asset_id_from_path(path: &str) -> String {
-    Path::new(path)
-        .file_stem()
-        .and_then(|stem| stem.to_str())
-        .unwrap_or(path)
-        .to_owned()
-}
-
-fn krkr_entry_looks_like_entrypoint(path: &str) -> bool {
-    let normalized = path.replace('\\', "/").to_ascii_lowercase();
-    matches!(
-        normalized.as_str(),
-        "startup.tjs"
-            | "system/startup.tjs"
-            | "appconfig.tjs"
-            | "main/config.tjs"
-            | "main/envinit.tjs"
-            | "main/default.tjs"
-            | "main/custom.ks"
-            | "main/custom.tjs"
-            | "first.ks"
-            | "start.ks"
-            | "title.ks"
-    ) || normalized.ends_with("/startup.tjs")
-        || normalized.ends_with("/first.ks")
-        || normalized.ends_with("/start.ks")
-        || normalized.ends_with("/title.ks")
-}
-
-fn default_krkr_output_path(root: &Path) -> PathBuf {
-    let folder_name = root
-        .file_name()
-        .and_then(|name| name.to_str())
-        .filter(|name| !name.is_empty())
-        .map(|name| format!("{name}-suzu-migration"))
-        .unwrap_or_else(|| "suzu-migration".to_owned());
-    std::env::var_os("USERPROFILE")
-        .map(PathBuf::from)
-        .map(|home| {
-            home.join("Documents")
-                .join("ProjectSuzu Migrations")
-                .join(&folder_name)
-        })
-        .unwrap_or_else(|| root.join(folder_name))
-}
-
-fn script_extension_is(path: &str, extension: &str) -> bool {
-    Path::new(path)
-        .extension()
-        .and_then(|value| value.to_str())
-        .is_some_and(|value| value.eq_ignore_ascii_case(extension))
-}
-
-fn read_best_krkr_script(archives: &[Xp3Archive], entry_name: &str) -> Option<Vec<u8>> {
-    archives
-        .iter()
-        .filter_map(|archive| {
-            let bytes = archive.read_file(entry_name).ok()?;
-            let text = decode_krkr_text(&bytes);
-            Some((score_krkr_text(&text), bytes))
-        })
-        .max_by_key(|(score, _)| *score)
-        .map(|(_, bytes)| bytes)
-}
-
-fn score_krkr_text(text: &str) -> i64 {
-    let mut score = 0i64;
-    for ch in text.chars() {
-        match ch {
-            '[' | ']' | '@' | '*' | '=' | ';' | '"' | '\'' => score += 8,
-            '\n' | '\r' | '\t' => score += 2,
-            '\u{20}'..='\u{7e}' => score += 3,
-            '\u{3040}'..='\u{30ff}' | '\u{3400}'..='\u{9fff}' => score += 2,
-            '\u{0}'..='\u{8}' | '\u{b}' | '\u{c}' | '\u{e}'..='\u{1f}' => score -= 10,
-            '\u{fffd}' => score -= 30,
-            _ => score -= 1,
-        }
-    }
-    score
-}
-
-fn krkr_script_references(source: &str, current_entry: &str) -> Vec<String> {
-    let mut references = Vec::new();
-    for token in source.split(|ch: char| ch.is_whitespace() || matches!(ch, '[' | ']')) {
-        let Some((key, raw_value)) = token.split_once('=') else {
-            continue;
-        };
-        if !key.eq_ignore_ascii_case("storage") {
-            continue;
-        }
-        let value = raw_value
-            .trim()
-            .trim_matches('"')
-            .trim_matches('\'')
-            .trim_matches(';');
-        if !script_extension_is(value, "ks") {
-            continue;
-        }
-        push_unique_reference(&mut references, value);
-        if let Some(parent) = Path::new(current_entry).parent() {
-            let relative = parent.join(value).to_string_lossy().replace('\\', "/");
-            push_unique_reference(&mut references, &relative);
-        }
-    }
-    references
-}
-
-fn push_unique_reference(references: &mut Vec<String>, value: &str) {
-    if !value.is_empty()
-        && !references
-            .iter()
-            .any(|existing| existing.eq_ignore_ascii_case(value))
-    {
-        references.push(value.to_owned());
-    }
-}
-
-fn krkr_script_lookup_keys(path: &str) -> Vec<String> {
-    let mut keys = Vec::new();
-    push_unique_lookup_key(&mut keys, path);
-    if let Some(file_name) = Path::new(path).file_name().and_then(|value| value.to_str()) {
-        push_unique_lookup_key(&mut keys, file_name);
-    }
-    keys
-}
-
-fn push_unique_lookup_key(keys: &mut Vec<String>, value: &str) {
-    let key = normalize_krkr_script_key(value);
-    if !key.is_empty() && !keys.iter().any(|existing| existing == &key) {
-        keys.push(key);
-    }
-}
-
-fn normalize_krkr_script_key(path: &str) -> String {
-    path.trim()
-        .trim_matches('"')
-        .trim_matches('\'')
-        .replace('\\', "/")
-        .to_ascii_lowercase()
-}
-
-fn krkr_script_labels(path: &str) -> Vec<String> {
-    let mut labels = Vec::new();
-    push_unique_label(&mut labels, path);
-    if let Some(file_name) = Path::new(path).file_name().and_then(|value| value.to_str()) {
-        push_unique_label(&mut labels, file_name);
-    }
-    if let Some(stem) = Path::new(path).file_stem().and_then(|value| value.to_str()) {
-        push_unique_label(&mut labels, stem);
-    }
-    labels
-}
-
-fn push_unique_label(labels: &mut Vec<String>, raw: &str) {
-    let label = sanitize_krkr_label(raw);
-    if !label.is_empty() && !labels.iter().any(|existing| existing == &label) {
-        labels.push(label);
-    }
-}
-
-fn sanitize_krkr_label(label: &str) -> String {
-    let label = label.trim().trim_start_matches('*');
-    label
-        .chars()
-        .map(|ch| match ch {
-            'A'..='Z' | 'a'..='z' | '0'..='9' | '_' | '-' | '.' => ch,
-            _ => '_',
-        })
-        .collect()
-}
-
-fn decode_krkr_text(bytes: &[u8]) -> String {
-    if let Some(rest) = bytes.strip_prefix(&[0xef, 0xbb, 0xbf]) {
-        return String::from_utf8_lossy(rest).into_owned();
-    }
-    if let Some(rest) = bytes.strip_prefix(&[0xff, 0xfe]) {
-        let (text, _, _) = UTF_16LE.decode(rest);
-        return text.into_owned();
-    }
-    if let Some(rest) = bytes.strip_prefix(&[0xfe, 0xff]) {
-        let (text, _, _) = UTF_16BE.decode(rest);
-        return text.into_owned();
-    }
-    if let Ok(text) = std::str::from_utf8(bytes) {
-        return text.to_owned();
-    }
-    let (text, _, _) = SHIFT_JIS.decode(bytes);
-    text.into_owned()
-}
-
-fn xp3_path_from_input(input: &str) -> Result<PathBuf, String> {
-    let cleaned = clean_path_input(input);
-    if cleaned.is_empty() {
-        return Err("Enter an XP3 path first.".to_owned());
-    }
-    let path = PathBuf::from(cleaned);
-    if path
-        .extension()
-        .and_then(|extension| extension.to_str())
-        .is_some_and(|extension| extension.eq_ignore_ascii_case("xp3"))
-    {
-        Ok(path)
-    } else {
-        Err("The selected file is not an .xp3 archive.".to_owned())
-    }
-}
-
-fn clean_path_input(input: &str) -> String {
-    let mut value = input.trim().trim_matches(['"', '\'']).trim().to_owned();
-    if let Some(rest) = value.strip_prefix("file:///") {
-        value = rest.replace('/', "\\");
-    } else if let Some(rest) = value.strip_prefix("file://") {
-        value = rest.replace('/', "\\");
-    }
-    value
-}
-
-fn render_frame(
-    painter: &egui::Painter,
-    bounds: egui::Rect,
-    frame: &DesktopFrame,
-    textures: &mut HashMap<String, egui::TextureHandle>,
-) {
-    painter.rect_filled(bounds, 0.0, color32(frame.clear_color, 1.0));
-    for texture in &frame.textures {
-        textures.entry(texture.id.clone()).or_insert_with(|| {
-            let image = egui::ColorImage::from_rgba_unmultiplied(
-                [texture.width as usize, texture.height as usize],
-                &texture.rgba,
-            );
-            painter
-                .ctx()
-                .load_texture(texture.id.clone(), image, Default::default())
-        });
-    }
-
-    let mut sprites = frame.sprites.iter().collect::<Vec<_>>();
-    sprites.sort_by_key(|sprite| sprite.z_index);
-    for sprite in sprites {
-        paint_sprite(painter, bounds, sprite, textures);
-    }
-    let mut texts = frame.texts.iter().collect::<Vec<_>>();
-    texts.sort_by_key(|text| text.z_index);
-    for text in texts {
-        paint_text(painter, bounds, text);
-    }
-}
-
-fn paint_sprite(
-    painter: &egui::Painter,
-    bounds: egui::Rect,
-    sprite: &FrameSprite,
-    textures: &HashMap<String, egui::TextureHandle>,
-) {
-    let rect = map_rect(bounds, sprite.bounds);
-    let tint = color32(sprite.tint, sprite.opacity);
-    if let Some(texture) = textures.get(&sprite.texture_id) {
-        painter.image(
-            texture.id(),
-            rect,
-            egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
-            tint,
-        );
-    } else {
-        painter.rect_filled(rect, 4.0, tint);
-    }
-}
-
-fn paint_text(painter: &egui::Painter, bounds: egui::Rect, text: &FrameText) {
-    let rect = map_rect(bounds, text.bounds);
-    painter.text(
-        rect.min,
-        egui::Align2::LEFT_TOP,
-        &text.content,
-        egui::FontId::proportional(20.0),
-        color32(text.color, 1.0),
-    );
-}
-
-fn map_rect(bounds: egui::Rect, rect: suzu_core::Rect) -> egui::Rect {
-    let scale_x = bounds.width() / 1280.0;
-    let scale_y = bounds.height() / 720.0;
-    egui::Rect::from_min_size(
-        egui::pos2(
-            bounds.left() + rect.origin.x * scale_x,
-            bounds.top() + rect.origin.y * scale_y,
-        ),
-        egui::vec2(rect.size.x * scale_x, rect.size.y * scale_y),
-    )
-}
-
-fn fit_size(size: egui::Vec2, bounds: egui::Vec2) -> egui::Vec2 {
-    let scale = (bounds.x / size.x).min(bounds.y / size.y).min(1.0);
-    size * scale.max(0.01)
-}
-
-fn color32(color: suzu_core::Color, opacity: f32) -> egui::Color32 {
-    egui::Color32::from_rgba_unmultiplied(
-        (color.r.clamp(0.0, 1.0) * 255.0) as u8,
-        (color.g.clamp(0.0, 1.0) * 255.0) as u8,
-        (color.b.clamp(0.0, 1.0) * 255.0) as u8,
-        ((color.a * opacity).clamp(0.0, 1.0) * 255.0) as u8,
-    )
-}
-
-fn install_cjk_fonts(ctx: &egui::Context) {
-    let Some((name, bytes)) = load_cjk_font() else {
-        return;
-    };
-    let mut fonts = egui::FontDefinitions::default();
-    fonts
-        .font_data
-        .insert(name.clone(), egui::FontData::from_owned(bytes));
-    for family in [egui::FontFamily::Proportional, egui::FontFamily::Monospace] {
-        fonts
-            .families
-            .entry(family)
-            .or_default()
-            .insert(0, name.clone());
-    }
-    ctx.set_fonts(fonts);
-}
-
-fn load_cjk_font() -> Option<(String, Vec<u8>)> {
-    for path in cjk_font_candidates() {
-        if let Ok(bytes) = fs::read(path) {
-            return Some((format!("cjk-{}", Path::new(path).display()), bytes));
-        }
-    }
-    None
-}
-
-fn cjk_font_candidates() -> &'static [&'static str] {
-    &[
-        r"C:\Windows\Fonts\msyh.ttc",
-        r"C:\Windows\Fonts\msyh.ttf",
-        r"C:\Windows\Fonts\meiryo.ttc",
-        r"C:\Windows\Fonts\YuGothM.ttc",
-        r"C:\Windows\Fonts\msgothic.ttc",
-        "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
-        "/System/Library/Fonts/PingFang.ttc",
-        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
-        "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
-    ]
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn cleans_quoted_path() {
-        assert_eq!(
-            clean_path_input(r#""D:\games\Suzu\data.xp3""#),
-            r"D:\games\Suzu\data.xp3"
-        );
-    }
-
-    #[test]
-    fn recognizes_xp3_paths() {
-        assert!(xp3_path_from_input(r"D:\games\Suzu\data.xp3").is_ok());
-        assert!(xp3_path_from_input(r"D:\games\Suzu\data.zip").is_err());
     }
 }

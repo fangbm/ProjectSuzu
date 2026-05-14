@@ -22,7 +22,7 @@ Project Suzu includes an experimental XP3 archive reader for asset preview and m
 
 ## External Plugin Hook
 
-The public repository does not include game-specific XP3 processors or proprietary handling rules. Applications that have the right to process a specific package can provide an external XP3 plugin module:
+The public repository does not include game-specific XP3 processors or proprietary handling rules. Applications that have the right to process a specific package can provide an external XP3 plugin module. See `LEGAL.md` before using or contributing plugin-related code:
 
 ```json
 {
@@ -48,7 +48,7 @@ The external process receives bytes on stdin and must return the same number of 
 - `{original_size}` and `{packed_size}`
 - `{segment_offset}`, `{segment_original_size}`, and `{segment_packed_size}`
 
-Plugin modules and plugin binaries should live outside this repository unless they only process data that the project has the right to redistribute.
+Plugin modules and plugin binaries should live outside this repository unless they only process data that the project has the right to redistribute. CLI and GUI tools require an explicit authorization confirmation before loading an external XP3 plugin.
 
 ## Not Supported
 

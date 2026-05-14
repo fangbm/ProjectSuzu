@@ -37,7 +37,7 @@ $binaries = @(
 Push-Location $repo
 try {
     if ($Check) {
-        foreach ($path in @("README.md", "README.zh-CN.md", "CONTRIBUTING.md", "SECURITY.md", "LICENSE-MIT", "LICENSE-APACHE", "CHANGELOG.md", "assets/branding/Suzu_icon.png", $AssetRoot) + $docFiles) {
+        foreach ($path in @("README.md", "README.zh-CN.md", "CONTRIBUTING.md", "SECURITY.md", "LEGAL.md", "LICENSE-MIT", "LICENSE-APACHE", "CHANGELOG.md", "assets/branding/Suzu_icon.png", $AssetRoot) + $docFiles) {
             if (-not (Test-Path $path)) {
                 throw "Missing package input: $path"
             }
@@ -73,6 +73,7 @@ try {
     Copy-Item "README.zh-CN.md" (Join-Path $dist "README.zh-CN.md")
     Copy-Item "CONTRIBUTING.md" (Join-Path $dist "CONTRIBUTING.md")
     Copy-Item "SECURITY.md" (Join-Path $dist "SECURITY.md")
+    Copy-Item "LEGAL.md" (Join-Path $dist "LEGAL.md")
     Copy-Item "LICENSE-MIT" (Join-Path $dist "LICENSE-MIT")
     Copy-Item "LICENSE-APACHE" (Join-Path $dist "LICENSE-APACHE")
     Copy-Item "CHANGELOG.md" (Join-Path $dist "CHANGELOG.md")

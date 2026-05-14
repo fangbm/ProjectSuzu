@@ -7,6 +7,7 @@ Use this checklist before creating a `v*` tag or running a manual GitHub release
 - [ ] Update `CHANGELOG.md`.
 - [ ] Confirm crate versions are intentional.
 - [ ] Confirm `README.md` describes the current feature set.
+- [ ] Confirm `LEGAL.md` and XP3 support boundaries are included.
 
 ## Verification
 
@@ -26,8 +27,8 @@ Use this checklist before creating a `v*` tag or running a manual GitHub release
 ## Tag Release
 
 ```powershell
-git tag v0.1.3
-git push origin v0.1.3
+git tag v0.1.4
+git push origin v0.1.4
 ```
 
 The GitHub release workflow builds platform artifacts and publishes archives for tags matching `v*`.

@@ -11,7 +11,7 @@ Run:
 ```
 
 The script builds the workspace, copies example binaries and desktop tools including `suzu-launcher`, `suzu-editor`, and `suzu-xp3-viewer`, includes user documentation, packs hello-world assets into `.suzupack`, writes a JSON manifest, and creates `dist/project-suzu-desktop.zip`.
-The package also includes the Project Suzu icon, `CONTRIBUTING.md`, `SECURITY.md`, `LICENSE-MIT`, `LICENSE-APACHE`, and `CHANGELOG.md`.
+The package also includes the Project Suzu icon, `CONTRIBUTING.md`, `SECURITY.md`, `LEGAL.md`, `LICENSE-MIT`, `LICENSE-APACHE`, and `CHANGELOG.md`.
 
 Check package inputs without building:
 
@@ -30,11 +30,11 @@ Custom output and asset root:
 `.github/workflows/release.yml` builds Linux and Windows artifacts on tags matching `v*`.
 
 ```powershell
-git tag v0.1.3
-git push origin v0.1.3
+git tag v0.1.4
+git push origin v0.1.4
 ```
 
-The workflow uploads per-platform archives containing tools, the visual script editor, benchmark CLI, examples, packed hello-world assets, README, and core/developer documentation. Release asset filenames include the tag, for example `project-suzu-v0.1.3-windows-x64.tar.gz`.
+The workflow uploads per-platform archives containing tools, the visual script editor, benchmark CLI, examples, packed hello-world assets, README, legal notes, and core/developer documentation. Release asset filenames include the tag, for example `project-suzu-v0.1.4-windows-x64.tar.gz`.
 
 Use `docs/release-checklist.md` as the final pre-tag checklist.
 

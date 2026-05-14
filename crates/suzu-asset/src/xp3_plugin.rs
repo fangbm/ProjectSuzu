@@ -242,6 +242,7 @@ fn expand_arg(template: &str, entry: &Xp3Entry, segment: &Xp3Segment) -> String 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::process::{Command, Stdio};
 
     #[test]
     fn loads_external_process_module() {
@@ -290,5 +291,112 @@ mod tests {
             expand_arg("{entry}:{checksum_hex}:{segment_offset}", &entry, &segment),
             "main/default.tjs:1234abcd:42"
         );
+    }
+
+    #[test]
+    fn resolves_relative_processor_command_from_module_directory() {
+        assert_eq!(
+            resolve_module_path("plugins/xp3-processor", Some(Path::new("module-dir"))),
+            PathBuf::from("module-dir").join("plugins/xp3-processor")
+        );
+    }
+
+    #[test]
+    fn external_processor_error_includes_stderr() {
+        let Some((command, args)) = failing_processor_command() else {
+            eprintln!("skipping external processor test: no shell available");
+            return;
+        };
+        let (entry, segment) = sample_entry_segment();
+        let mut bytes = b"abc".to_vec();
+
+        let error = run_external_processor(&command, &args, &mut bytes, &entry, &segment)
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("plugin failed"), "{error}");
+    }
+
+    #[test]
+    fn external_processor_rejects_byte_count_mismatch() {
+        let Some((command, args)) = short_processor_command() else {
+            eprintln!("skipping external processor test: no shell available");
+            return;
+        };
+        let (entry, segment) = sample_entry_segment();
+        let mut bytes = b"abc".to_vec();
+
+        let error = run_external_processor(&command, &args, &mut bytes, &entry, &segment)
+            .unwrap_err()
+            .to_string();
+
+        assert!(
+            error.contains("returned 1 bytes for 3 byte input"),
+            "{error}"
+        );
+    }
+
+    fn sample_entry_segment() -> (Xp3Entry, Xp3Segment) {
+        (
+            Xp3Entry {
+                name: "main/default.tjs".to_owned(),
+                protected: true,
+                original_size: 3,
+                packed_size: 3,
+                checksum: None,
+                segments: Vec::new(),
+            },
+            Xp3Segment {
+                compressed: false,
+                offset: 0,
+                original_size: 3,
+                packed_size: 3,
+            },
+        )
+    }
+
+    fn failing_processor_command() -> Option<(PathBuf, Vec<String>)> {
+        shell_args(
+            "cat >/dev/null; printf 'plugin failed' >&2; exit 7",
+            "[Console]::Error.Write('plugin failed'); exit 7",
+        )
+    }
+
+    fn short_processor_command() -> Option<(PathBuf, Vec<String>)> {
+        shell_args(
+            "dd bs=1 count=1 2>/dev/null",
+            "$inputStream=[Console]::OpenStandardInput(); $buffer=[byte[]]::new(1); $read=$inputStream.Read($buffer,0,1); if ($read -gt 0) { [Console]::OpenStandardOutput().Write($buffer,0,1) }",
+        )
+    }
+
+    #[cfg(windows)]
+    fn shell_args(_unix_script: &str, windows_script: &str) -> Option<(PathBuf, Vec<String>)> {
+        let command = PathBuf::from("pwsh");
+        Command::new(&command)
+            .args(["-NoProfile", "-Command", "$PSVersionTable.PSVersion"])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .ok()?;
+        Some((
+            command,
+            vec![
+                "-NoProfile".to_owned(),
+                "-Command".to_owned(),
+                windows_script.to_owned(),
+            ],
+        ))
+    }
+
+    #[cfg(not(windows))]
+    fn shell_args(unix_script: &str, _windows_script: &str) -> Option<(PathBuf, Vec<String>)> {
+        let command = PathBuf::from("sh");
+        Command::new(&command)
+            .args(["-c", "true"])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .ok()?;
+        Some((command, vec!["-c".to_owned(), unix_script.to_owned()]))
     }
 }

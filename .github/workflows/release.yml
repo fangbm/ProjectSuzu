@@ -66,6 +66,7 @@ jobs:
           Copy-Item README.zh-CN.md dist/README.zh-CN.md
           Copy-Item CONTRIBUTING.md dist/CONTRIBUTING.md
           Copy-Item SECURITY.md dist/SECURITY.md
+          Copy-Item LEGAL.md dist/LEGAL.md
           Copy-Item LICENSE-MIT dist/LICENSE-MIT
           Copy-Item LICENSE-APACHE dist/LICENSE-APACHE
           Copy-Item CHANGELOG.md dist/CHANGELOG.md

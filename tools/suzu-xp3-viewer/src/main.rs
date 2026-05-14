@@ -12,6 +12,9 @@ use suzu_app::{GameConfig, SuzuApp, TitleScreenConfig};
 use suzu_asset::{AssetType, TextureAsset, Xp3Archive, Xp3Entry, Xp3Options, Xp3PluginModule};
 use suzu_platform::{DesktopApp, DesktopFrame, DesktopInputEvent, FrameSprite, FrameText};
 
+const XP3_PLUGIN_AUTHORIZATION_MESSAGE: &str =
+    "Only use XP3 plugins for resources you own or are authorized to process. Do not use plugins to bypass DRM, license checks, or access controls. See LEGAL.md.";
+
 fn main() -> eframe::Result<()> {
     let initial_path = std::env::args_os()
         .nth(1)
@@ -34,6 +37,7 @@ fn main() -> eframe::Result<()> {
 struct Xp3ViewerApp {
     xp3_path: String,
     xp3_plugin_path: String,
+    xp3_plugin_authorized: bool,
     archive: Option<Xp3Archive>,
     entries: Vec<EntryRow>,
     selected: Option<usize>,
@@ -87,6 +91,7 @@ impl Xp3ViewerApp {
         let mut app = Self {
             xp3_path: initial_path,
             xp3_plugin_path: String::new(),
+            xp3_plugin_authorized: false,
             archive: None,
             entries: Vec::new(),
             selected: None,
@@ -147,11 +152,35 @@ impl Xp3ViewerApp {
     fn xp3_options(&self) -> Result<Xp3Options, String> {
         let module_path = clean_path_input(&self.xp3_plugin_path);
         if !module_path.is_empty() {
+            self.ensure_xp3_plugin_authorized()?;
             let module = Xp3PluginModule::from_json_file(&module_path)
                 .map_err(|error| format!("Failed to load XP3 plugin module: {error:#}"))?;
             return Ok(module.xp3_options());
         }
         Ok(Xp3Options::default())
+    }
+
+    fn xp3_plugin_requires_authorization(&self) -> bool {
+        !clean_path_input(&self.xp3_plugin_path).is_empty()
+    }
+
+    fn ensure_xp3_plugin_authorized(&self) -> Result<(), String> {
+        if self.xp3_plugin_requires_authorization() && !self.xp3_plugin_authorized {
+            return Err(XP3_PLUGIN_AUTHORIZATION_MESSAGE.to_owned());
+        }
+        Ok(())
+    }
+
+    fn xp3_plugin_authorization_ui(&mut self, ui: &mut egui::Ui) {
+        if self.xp3_plugin_requires_authorization() {
+            ui.checkbox(
+                &mut self.xp3_plugin_authorized,
+                "I have rights to process these assets",
+            );
+            ui.label(XP3_PLUGIN_AUTHORIZATION_MESSAGE);
+        } else {
+            self.xp3_plugin_authorized = false;
+        }
     }
 
     fn select_entry(&mut self, ctx: &egui::Context, index: usize) {
@@ -305,6 +334,7 @@ impl Xp3ViewerApp {
             ui.separator();
             ui.label(&self.status);
         });
+        self.xp3_plugin_authorization_ui(ui);
     }
 
     fn entries_panel(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {

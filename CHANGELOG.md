@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.4 - 2026-05-14
+
+- Merged experimental XP3 archive reader and XP3-backed asset loading.
+- Added XP3 viewer and unified launcher preview tools.
+- Added KRKR package scan and limited KAG-to-Suzu conversion experiments.
+- Added explicit XP3 support boundaries and an external XP3 plugin hook.
+- Expanded CI triggers to feature branches and version tags.
+- Added release quality gates, legal guidance, and versioned Windows/Linux artifact preparation.
+- Fixed workspace repository metadata.
+
 ## 0.1.3 - 2026-05-11
 
 - Added the first visual script editor MVP with `suzu-editor-core` and the `suzu-editor` desktop tool.

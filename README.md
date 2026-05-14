@@ -2,6 +2,8 @@
 
 [简体中文](README.zh-CN.md)
 
+[![CI](https://github.com/fangbm/ProjectSuzu/actions/workflows/ci.yml/badge.svg)](https://github.com/fangbm/ProjectSuzu/actions/workflows/ci.yml)
+
 ![Project Suzu icon](assets/branding/Suzu_icon.png)
 
 Project Suzu is a Rust visual novel framework based on the project plan in `docs/project-plan.md`.
@@ -36,7 +38,7 @@ Desktop examples now start on a built-in title screen. The runtime title menu su
 | XP3 viewer and KRKR package scan | Preview |
 | KRKR package scan mode | Limited preview |
 
-XP3 support is limited to plaintext archive reading in the public repository. Applications may provide external XP3 plugin modules for packages they are authorized to process, but game-specific processors are intentionally kept out of this repository. See `docs/xp3-support.md`.
+XP3 support is limited to plaintext archive reading in the public repository. Applications may provide external XP3 plugin modules for packages they are authorized to process, but game-specific processors are intentionally kept out of this repository. See `docs/xp3-support.md` and `LEGAL.md`.
 
 ## Commands
 
@@ -60,4 +62,4 @@ On Windows, the desktop example binaries use the GUI subsystem, so launching the
 
 `suzu-packer` emits a JSON asset manifest that can be registered through `AssetManager::register_manifest_file` or `SuzuApp::register_asset_manifest_file`, and can also write `.suzupack` archives with RLE compression, packed offsets, and checksum metadata. The asset manager supports synchronous texture loads, background texture loads, optional LRU texture caching, and package archive reads. `GameConfig` and `UserSettings` can be read from or written to JSON files for project and user preference persistence.
 Script compile errors include line/column diagnostics, and unknown commands suggest the closest built-in command when possible. Scripts may declare `@script version=1`; the compiler validates the format version and exposes a migration entry point for future DSL upgrades.
-User-facing documentation lives in `docs/user-guide.md`, `docs/scripting-reference.md`, `docs/xp3-support.md`, `docs/release-packaging.md`, `docs/developer-checks.md`, and `docs/release-checklist.md`. The visual script editor plan is tracked in `docs/visual-script-editor-development-plan.md`, and the first editor MVP can be launched with `cargo run -p suzu-editor`. Contribution and security notes live in `CONTRIBUTING.md` and `SECURITY.md`. Project changes are summarized in `CHANGELOG.md`; licensing is `MIT OR Apache-2.0`.
+User-facing documentation lives in `docs/user-guide.md`, `docs/scripting-reference.md`, `docs/xp3-support.md`, `docs/release-packaging.md`, `docs/developer-checks.md`, and `docs/release-checklist.md`. The visual script editor plan is tracked in `docs/visual-script-editor-development-plan.md`, and the first editor MVP can be launched with `cargo run -p suzu-editor`. Contribution, security, and legal notes live in `CONTRIBUTING.md`, `SECURITY.md`, and `LEGAL.md`. Project changes are summarized in `CHANGELOG.md`; licensing is `MIT OR Apache-2.0`.
