@@ -1,21 +1,29 @@
-use std::{collections::HashMap, time::Instant};
+use std::{
+    collections::HashMap,
+    path::PathBuf,
+    thread::{self, JoinHandle},
+    time::{Duration, Instant},
+};
 
+use anyhow::{anyhow, Result};
 use eframe::egui;
 use suzu_app::{GameConfig, SuzuApp, TitleScreenConfig};
 use suzu_asset::{AssetType, Xp3Archive, Xp3Entry};
 
 use crate::fonts::install_cjk_fonts;
 use crate::paths::{asset_id_from_path, asset_type_from_path, xp3_path_from_input};
-use crate::preview::preview_from_bytes;
+use crate::preview::{preview_data_from_bytes, preview_from_data, PreviewData};
 
 pub(crate) struct Xp3ViewerApp {
     pub(crate) xp3_path: String,
     pub(crate) xp3_plugin_path: String,
     pub(crate) xp3_plugin_authorized: bool,
     pub(crate) archive: Option<Xp3Archive>,
+    pub(crate) archive_job: Option<ArchiveLoadJob>,
     pub(crate) entries: Vec<EntryRow>,
     pub(crate) selected: Option<usize>,
     pub(crate) preview: Preview,
+    pub(crate) preview_job: Option<EntryPreviewJob>,
     pub(crate) game: Option<GamePreview>,
     pub(crate) status: String,
 }
@@ -31,6 +39,9 @@ pub(crate) struct EntryRow {
 
 pub(crate) enum Preview {
     Empty,
+    Loading {
+        name: String,
+    },
     Image {
         name: String,
         size: [usize; 2],
@@ -52,6 +63,23 @@ pub(crate) enum Preview {
     },
 }
 
+pub(crate) struct ArchiveLoadJob {
+    path: PathBuf,
+    handle: JoinHandle<Result<Xp3Archive>>,
+}
+
+pub(crate) struct EntryPreviewJob {
+    row: EntryRow,
+    handle: JoinHandle<Result<EntryPreviewResult>>,
+}
+
+pub(crate) struct EntryPreviewResult {
+    index: usize,
+    row: EntryRow,
+    bytes: usize,
+    data: PreviewData,
+}
+
 pub(crate) struct GamePreview {
     pub(crate) app: SuzuApp,
     pub(crate) script_id: String,
@@ -67,9 +95,11 @@ impl Xp3ViewerApp {
             xp3_plugin_path: String::new(),
             xp3_plugin_authorized: false,
             archive: None,
+            archive_job: None,
             entries: Vec::new(),
             selected: None,
             preview: Preview::Empty,
+            preview_job: None,
             game: None,
             status: "Enter an XP3 path and press Load.".to_owned(),
         };
@@ -80,6 +110,15 @@ impl Xp3ViewerApp {
     }
 
     pub(crate) fn load_archive(&mut self, ctx: &egui::Context) {
+        if self.archive_job.is_some() {
+            self.status = "XP3 index is already loading.".to_owned();
+            return;
+        }
+        if self.preview_job.is_some() {
+            self.status = "Preview is still loading; wait before opening another XP3.".to_owned();
+            return;
+        }
+
         let path = match xp3_path_from_input(&self.xp3_path) {
             Ok(path) => path,
             Err(error) => {
@@ -96,34 +135,29 @@ impl Xp3ViewerApp {
             }
         };
 
-        match Xp3Archive::from_file_with_options(&path, options) {
-            Ok(archive) => {
-                self.entries = archive.entries().iter().map(EntryRow::from).collect();
-                self.status = format!(
-                    "Loaded {} entries from {}.",
-                    self.entries.len(),
-                    path.display()
-                );
-                self.archive = Some(archive);
-                self.selected = None;
-                self.preview = Preview::Empty;
-                self.game = None;
-                if !self.entries.is_empty() {
-                    self.select_entry(ctx, 0);
-                }
-            }
-            Err(error) => {
-                self.archive = None;
-                self.entries.clear();
-                self.selected = None;
-                self.preview = Preview::Empty;
-                self.game = None;
-                self.status = format!("Failed to load XP3: {error:#}");
-            }
-        }
+        let job_path = path.clone();
+        let display_path = path.display().to_string();
+        self.archive_job = Some(ArchiveLoadJob {
+            path,
+            handle: thread::spawn(move || Xp3Archive::from_file_with_options(&job_path, options)),
+        });
+        self.preview_job = None;
+        self.archive = None;
+        self.entries.clear();
+        self.selected = None;
+        self.preview = Preview::Empty;
+        self.game = None;
+        self.status = format!("Loading XP3 index from {display_path}...");
+        ctx.request_repaint();
     }
 
     pub(crate) fn select_entry(&mut self, ctx: &egui::Context, index: usize) {
+        if self.preview_job.is_some() {
+            self.status =
+                "Preview is still loading; wait before selecting another entry.".to_owned();
+            return;
+        }
+
         self.selected = Some(index);
         let Some(archive) = &self.archive else {
             self.preview = Preview::Empty;
@@ -134,17 +168,85 @@ impl Xp3ViewerApp {
             return;
         };
 
-        match archive.read_file(&row.name) {
-            Ok(bytes) => {
-                self.status = format!("Loaded {} bytes from {}.", bytes.len(), row.name);
-                self.preview = preview_from_bytes(ctx, row, bytes);
+        let archive = archive.clone();
+        let job_row = row.clone();
+        self.preview = Preview::Loading {
+            name: row.name.clone(),
+        };
+        self.status = format!("Loading preview for {}...", row.name);
+        self.preview_job = Some(EntryPreviewJob {
+            row,
+            handle: thread::spawn(move || {
+                let bytes = archive.read_file(&job_row.name)?;
+                let byte_count = bytes.len();
+                let data = preview_data_from_bytes(job_row.clone(), bytes);
+                Ok(EntryPreviewResult {
+                    index,
+                    row: job_row,
+                    bytes: byte_count,
+                    data,
+                })
+            }),
+        });
+        ctx.request_repaint();
+    }
+
+    pub(crate) fn poll_background_jobs(&mut self, ctx: &egui::Context) {
+        if self
+            .archive_job
+            .as_ref()
+            .is_some_and(|job| job.handle.is_finished())
+        {
+            let job = self.archive_job.take().expect("archive job disappeared");
+            match join_archive_job(job) {
+                Ok(archive) => {
+                    self.entries = archive.entries().iter().map(EntryRow::from).collect();
+                    self.status = format!(
+                        "Loaded {} entries from {}. Select an entry to preview.",
+                        self.entries.len(),
+                        self.xp3_path
+                    );
+                    self.archive = Some(archive);
+                    self.selected = None;
+                    self.preview = Preview::Empty;
+                    self.game = None;
+                }
+                Err(error) => {
+                    self.archive = None;
+                    self.entries.clear();
+                    self.selected = None;
+                    self.preview = Preview::Empty;
+                    self.game = None;
+                    self.status = format!("Failed to load XP3: {error:#}");
+                }
             }
-            Err(error) => {
-                self.preview = Preview::Error {
-                    name: row.name,
-                    message: format!("{error:#}"),
-                };
+        }
+
+        if self
+            .preview_job
+            .as_ref()
+            .is_some_and(|job| job.handle.is_finished())
+        {
+            let job = self.preview_job.take().expect("preview job disappeared");
+            let fallback_name = job.row.name.clone();
+            match join_preview_job(job) {
+                Ok(result) => {
+                    self.selected = Some(result.index);
+                    self.status =
+                        format!("Loaded {} bytes from {}.", result.bytes, result.row.name);
+                    self.preview = preview_from_data(ctx, result.data);
+                }
+                Err(error) => {
+                    self.preview = Preview::Error {
+                        name: fallback_name,
+                        message: format!("{error:#}"),
+                    };
+                }
             }
+        }
+
+        if self.archive_job.is_some() || self.preview_job.is_some() {
+            ctx.request_repaint_after(Duration::from_millis(50));
         }
     }
 
@@ -240,6 +342,18 @@ impl Xp3ViewerApp {
             self.load_archive(ctx);
         }
     }
+}
+
+fn join_archive_job(job: ArchiveLoadJob) -> Result<Xp3Archive> {
+    job.handle
+        .join()
+        .map_err(|_| anyhow!("XP3 load worker panicked for {}", job.path.display()))?
+}
+
+fn join_preview_job(job: EntryPreviewJob) -> Result<EntryPreviewResult> {
+    job.handle
+        .join()
+        .map_err(|_| anyhow!("XP3 preview worker panicked for {}", job.row.name))?
 }
 
 impl From<&Xp3Entry> for EntryRow {

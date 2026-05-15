@@ -6,20 +6,40 @@ use suzu_platform::{DesktopFrame, FrameSprite, FrameText};
 
 use crate::app::{EntryRow, Preview};
 
-pub(crate) fn preview_from_bytes(ctx: &egui::Context, row: EntryRow, bytes: Vec<u8>) -> Preview {
+pub(crate) enum PreviewData {
+    Image {
+        name: String,
+        size: [usize; 2],
+        rgba: Vec<u8>,
+    },
+    Text {
+        name: String,
+        text: String,
+        truncated: bool,
+    },
+    Binary {
+        name: String,
+        bytes: usize,
+        kind: AssetType,
+    },
+    Error {
+        name: String,
+        message: String,
+    },
+}
+
+pub(crate) fn preview_data_from_bytes(row: EntryRow, bytes: Vec<u8>) -> PreviewData {
     match row.kind {
         AssetType::Texture => match TextureAsset::from_bytes(&bytes) {
             Ok(texture) => {
                 let size = [texture.width as usize, texture.height as usize];
-                let image = egui::ColorImage::from_rgba_unmultiplied(size, &texture.rgba);
-                let handle = ctx.load_texture(row.name.clone(), image, Default::default());
-                Preview::Image {
+                PreviewData::Image {
                     name: row.name,
                     size,
-                    texture: handle,
+                    rgba: texture.rgba,
                 }
             }
-            Err(error) => Preview::Error {
+            Err(error) => PreviewData::Error {
                 name: row.name,
                 message: format!("{error:#}"),
             },
@@ -30,23 +50,48 @@ pub(crate) fn preview_from_bytes(ctx: &egui::Context, row: EntryRow, bytes: Vec<
                 if truncated {
                     text.truncate(20_000);
                 }
-                Preview::Text {
+                PreviewData::Text {
                     name: row.name,
                     text,
                     truncated,
                 }
             }
-            Err(error) => Preview::Binary {
+            Err(error) => PreviewData::Binary {
                 name: row.name,
                 bytes: error.as_bytes().len(),
                 kind: row.kind,
             },
         },
-        kind => Preview::Binary {
+        kind => PreviewData::Binary {
             name: row.name,
             bytes: bytes.len(),
             kind,
         },
+    }
+}
+
+pub(crate) fn preview_from_data(ctx: &egui::Context, data: PreviewData) -> Preview {
+    match data {
+        PreviewData::Image { name, size, rgba } => {
+            let image = egui::ColorImage::from_rgba_unmultiplied(size, &rgba);
+            let texture = ctx.load_texture(name.clone(), image, Default::default());
+            Preview::Image {
+                name,
+                size,
+                texture,
+            }
+        }
+        PreviewData::Text {
+            name,
+            text,
+            truncated,
+        } => Preview::Text {
+            name,
+            text,
+            truncated,
+        },
+        PreviewData::Binary { name, bytes, kind } => Preview::Binary { name, bytes, kind },
+        PreviewData::Error { name, message } => Preview::Error { name, message },
     }
 }
 

@@ -164,15 +164,19 @@ fn run_external_processor(
     entry: &Xp3Entry,
     segment: &Xp3Segment,
 ) -> Result<()> {
-    let mut child = Command::new(command)
-        .args(
-            args.iter()
-                .map(|arg| expand_arg(arg, entry, segment))
-                .collect::<Vec<_>>(),
-        )
+    let expanded_args = args
+        .iter()
+        .map(|arg| expand_arg(arg, entry, segment))
+        .collect::<Vec<_>>();
+    let mut process = Command::new(command);
+    process
+        .args(expanded_args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
+        .stderr(Stdio::piped());
+    configure_external_processor(&mut process);
+
+    let mut child = process
         .spawn()
         .with_context(|| format!("failed to start XP3 plugin {}", command.display()))?;
     child
@@ -203,6 +207,17 @@ fn run_external_processor(
     bytes.copy_from_slice(&output.stdout);
     Ok(())
 }
+
+#[cfg(windows)]
+fn configure_external_processor(command: &mut Command) {
+    use std::os::windows::process::CommandExt;
+
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    command.creation_flags(CREATE_NO_WINDOW);
+}
+
+#[cfg(not(windows))]
+fn configure_external_processor(_command: &mut Command) {}
 
 fn resolve_module_path(value: &str, base_dir: Option<&Path>) -> PathBuf {
     let path = PathBuf::from(value);

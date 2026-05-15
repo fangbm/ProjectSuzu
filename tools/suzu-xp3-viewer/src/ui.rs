@@ -19,10 +19,21 @@ impl Xp3ViewerApp {
             if response.lost_focus() && ui.input(|input| input.key_pressed(egui::Key::Enter)) {
                 self.load_archive(ctx);
             }
-            if ui.button("Load").clicked() {
+            let busy = self.archive_job.is_some() || self.preview_job.is_some();
+            let load_label = if self.archive_job.is_some() {
+                "Loading..."
+            } else if self.preview_job.is_some() {
+                "Previewing..."
+            } else {
+                "Load"
+            };
+            if ui
+                .add_enabled(!busy, egui::Button::new(load_label))
+                .clicked()
+            {
                 self.load_archive(ctx);
             }
-            let can_start = self.selected_script_id().is_some();
+            let can_start = !busy && self.selected_script_id().is_some();
             if ui
                 .add_enabled(can_start, egui::Button::new("Start Game"))
                 .clicked()
@@ -50,6 +61,7 @@ impl Xp3ViewerApp {
 
         egui::ScrollArea::vertical().show(ui, |ui| {
             let mut clicked = None;
+            let preview_busy = self.preview_job.is_some();
             for (index, row) in self.entries.iter().enumerate() {
                 let selected = self.selected == Some(index);
                 let marker = if row.protected { "locked" } else { "plain" };
@@ -57,7 +69,10 @@ impl Xp3ViewerApp {
                     "{:?} · {} · {} / {} bytes · {}",
                     row.kind, marker, row.packed_size, row.original_size, row.name
                 );
-                if ui.selectable_label(selected, label).clicked() {
+                if ui
+                    .add_enabled(!preview_busy, egui::SelectableLabel::new(selected, label))
+                    .clicked()
+                {
                     clicked = Some(index);
                 }
             }
@@ -79,6 +94,10 @@ impl Xp3ViewerApp {
         match &self.preview {
             Preview::Empty => {
                 ui.label("Load an XP3 and select an entry.");
+            }
+            Preview::Loading { name } => {
+                ui.spinner();
+                ui.label(format!("Loading preview for {name}..."));
             }
             Preview::Image {
                 name,
@@ -169,6 +188,7 @@ impl Xp3ViewerApp {
 
 impl eframe::App for Xp3ViewerApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.poll_background_jobs(ctx);
         self.load_dropped_xp3(ctx);
         egui::TopBottomPanel::top("top").show(ctx, |ui| self.top_bar(ui, ctx));
         egui::SidePanel::left("entries")

@@ -1,6 +1,6 @@
 # Project Suzu Continuation Context
 
-Last updated: 2026-05-15 17:52:38 +08:00
+Last updated: 2026-05-15 18:56:40 +08:00
 
 This is the compressed handoff for continuing Project Suzu. Update this file at the end of each future Codex conversation on this repository before sending the final reply. Treat live `git status`, GitHub Releases, and GitHub Actions as the source of truth when they differ from this note.
 
@@ -18,8 +18,8 @@ This is the compressed handoff for continuing Project Suzu. Update this file at 
 
 - Current branch after this work: `main`.
 - `v0.1.5` was tagged from the framework-guide commit `e749f9e Add detailed framework guide` and released successfully on 2026-05-15.
-- The current working tree contains post-`v0.1.5` follow-up changes from `ProjectSuzu-improvement-plan-2026-05-15.md`: unified GUI `--check` diagnostics, a minimal template, getting-started documentation, and future package/release inclusion for those entry materials.
-- After committing/pushing the follow-up changes, `main` will be ahead of the `v0.1.5` release tag. Do not retag `v0.1.5`; use a later tag for the next release.
+- `main` includes post-`v0.1.5` follow-up commit `5a7c237 Add getting started template and check diagnostics`.
+- This conversation added XP3 viewer responsiveness work after `v0.1.5`: background XP3 index loading, background entry preview/decode, no automatic first-entry decrypt on archive load, and hidden Windows external processor windows. Do not retag `v0.1.5`; use a later tag for the next release.
 - One old stash remains: `stash@{0}: On feature/xp3-archive-support: local xp3 legal cleanup before main merge`. It was retained from earlier cleanup work; do not drop it unless the user asks.
 
 ## v0.1.5 Work Completed
@@ -60,6 +60,21 @@ This is the compressed handoff for continuing Project Suzu. Update this file at 
 - Added `templates/minimal-vn` with `Cargo.toml`, `README.md`, `assets/README.md`, `script/main.szs`, and `src/main.rs`.
 - Updated README files, `docs/user-guide.md`, `docs/framework-guide.md`, `docs/release-checklist.md`, `docs/release-packaging.md`, `scripts/package-desktop.ps1`, and `.github/workflows/release.yml` to point to/include the getting-started guide and minimal template in future packages.
 
+## 2026-05-15 XP3 Preview Responsiveness Optimization
+
+- Fixed severe UI stalls in `suzu-xp3-viewer` when loading or previewing encrypted/protected XP3 entries through an external plugin.
+- `suzu-xp3-viewer` now loads the XP3 index on a background worker and keeps the egui UI repainting while the archive is loading.
+- Loading an archive no longer automatically selects/decrypts/previews the first entry. The viewer waits for the user to select an entry, avoiding surprise external processor launches right after choosing a file.
+- Entry preview now runs `archive.read_file` and preview data preparation on a background worker. The UI shows a loading state and creates the final egui texture only after decoded image/text data is ready.
+- The viewer avoids starting overlapping preview workers from repeated entry clicks while a preview is still loading.
+- On Windows, external XP3 processors launched by `suzu-asset` use `CREATE_NO_WINDOW`, which should stop the short console window flashes seen when the plugin command is `python.exe`.
+- Tested against local user-provided paths:
+  - XP3: `D:\Program Files\まいてつ Last Run!!\data.xp3`, size `821086680` bytes.
+  - Plugin: `C:\Users\方便面\Documents\New project 3\maitetsu-xp3-plugin\xp3-plugin.json`.
+  - The plugin command is `C:\ProgramData\miniconda3\python.exe` with stage `after_inflate`.
+- Real-file `suzu-xp3-viewer --check --xp3 ... --xp3-plugin ... --i-have-rights-to-process-these-assets` passed.
+- Real-folder `suzu-launcher --krkr-probe "D:\Program Files\まいてつ Last Run!!"` passed and reported 12 XP3 archives, with `data.xp3` containing 3220 entries, 817 script-like protected entries, and entrypoint candidates `main/default.tjs`, `scenario/start.ks`, `startup.tjs`.
+
 ## Verification Passed Locally
 
 - `cargo fmt --all -- --check`
@@ -76,6 +91,10 @@ This is the compressed handoff for continuing Project Suzu. Update this file at 
 - `cargo run -p suzu-editor -- --check`
 - `.\scripts\package-desktop.ps1 -Check`
 - `git diff --check`
+- Latest XP3 preview optimization gate additionally passed:
+  - `cargo test -p suzu-asset xp3_plugin -- --nocapture`
+  - `cargo test -p suzu-xp3-viewer`
+  - Real `data.xp3` plus local external plugin `suzu-xp3-viewer --check`.
 
 ## Release Status
 
