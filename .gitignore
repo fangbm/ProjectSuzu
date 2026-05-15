@@ -1,6 +1,7 @@
 /target/
 /dist/
 /.codex/
+/docs/project-continuation-context.md
 /templates/*/target/
 /templates/*/Cargo.lock
 *.pdb
