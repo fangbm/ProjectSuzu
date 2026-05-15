@@ -20,6 +20,7 @@ members = [
     "tools/suzu-editor",
     "tools/suzu-launcher",
     "tools/suzu-xp3-viewer",
+    "tests/smoke",
 ]
 resolver = "2"
 

@@ -1,0 +1,1 @@
+//! Workspace smoke-test crate.

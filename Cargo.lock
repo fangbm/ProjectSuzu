@@ -3821,6 +3821,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "suzu-smoke-tests"
+version = "0.1.4"
+dependencies = [
+ "anyhow",
+ "suzu-app",
+ "suzu-asset",
+ "suzu-editor-core",
+ "suzu-packer",
+ "suzu-script",
+]
+
+[[package]]
 name = "suzu-text"
 version = "0.1.4"
 dependencies = [

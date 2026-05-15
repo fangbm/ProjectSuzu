@@ -1,0 +1,15 @@
+[package]
+name = "suzu-smoke-tests"
+version = "0.1.4"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+anyhow.workspace = true
+suzu-app.workspace = true
+suzu-asset.workspace = true
+suzu-editor-core.workspace = true
+suzu-packer = { path = "../../tools/suzu-packer" }
+suzu-script.workspace = true
