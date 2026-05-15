@@ -1,10 +1,14 @@
 use std::collections::HashMap;
 
 use eframe::egui;
+use encoding_rs::SHIFT_JIS;
 use suzu_asset::{AssetType, TextureAsset};
 use suzu_platform::{DesktopFrame, FrameSprite, FrameText};
 
 use crate::app::{EntryRow, Preview};
+
+const TEXT_PREVIEW_LIMIT: usize = 20_000;
+const TEXT_SCORE_SAMPLE: usize = 8_000;
 
 pub(crate) enum PreviewData {
     Image {
@@ -44,21 +48,18 @@ pub(crate) fn preview_data_from_bytes(row: EntryRow, bytes: Vec<u8>) -> PreviewD
                 message: format!("{error:#}"),
             },
         },
-        AssetType::Script | AssetType::Data => match String::from_utf8(bytes) {
-            Ok(mut text) => {
-                let truncated = text.len() > 20_000;
-                if truncated {
-                    text.truncate(20_000);
-                }
+        AssetType::Script | AssetType::Data => match decode_text_preview(&bytes) {
+            Some((mut text, label)) => {
+                let truncated = truncate_preview_text(&mut text);
                 PreviewData::Text {
-                    name: row.name,
+                    name: format!("{} · {}", row.name, label),
                     text,
                     truncated,
                 }
             }
-            Err(error) => PreviewData::Binary {
+            None => PreviewData::Binary {
                 name: row.name,
-                bytes: error.as_bytes().len(),
+                bytes: bytes.len(),
                 kind: row.kind,
             },
         },
@@ -68,6 +69,168 @@ pub(crate) fn preview_data_from_bytes(row: EntryRow, bytes: Vec<u8>) -> PreviewD
             kind,
         },
     }
+}
+
+fn decode_text_preview(bytes: &[u8]) -> Option<(String, &'static str)> {
+    if bytes.is_empty() {
+        return Some((String::new(), "empty text"));
+    }
+
+    let mut candidates = Vec::new();
+    if let Ok(text) = std::str::from_utf8(bytes) {
+        candidates.push((strip_utf8_bom(text).to_owned(), "utf-8"));
+    }
+
+    if bytes.starts_with(&[0xff, 0xfe]) {
+        if let Some(text) = decode_utf16(&bytes[2..], Utf16Endian::Little) {
+            candidates.push((text, "utf-16le"));
+        }
+    } else if bytes.starts_with(&[0xfe, 0xff]) {
+        if let Some(text) = decode_utf16(&bytes[2..], Utf16Endian::Big) {
+            candidates.push((text, "utf-16be"));
+        }
+    } else {
+        if let Some(text) = decode_utf16(bytes, Utf16Endian::Little) {
+            let label = if looks_like_utf16(bytes, Utf16Endian::Little) {
+                "utf-16le"
+            } else {
+                "utf-16le-candidate"
+            };
+            candidates.push((text, label));
+        }
+        if let Some(text) = decode_utf16(bytes, Utf16Endian::Big) {
+            let label = if looks_like_utf16(bytes, Utf16Endian::Big) {
+                "utf-16be"
+            } else {
+                "utf-16be-candidate"
+            };
+            candidates.push((text, label));
+        }
+    }
+
+    let (shift_jis, _, had_errors) = SHIFT_JIS.decode(bytes);
+    if !had_errors || text_score(&shift_jis) > 200 {
+        candidates.push((shift_jis.into_owned(), "shift_jis"));
+    }
+
+    candidates
+        .into_iter()
+        .map(|(text, label)| {
+            let base_score = text_score(&text);
+            let score = base_score + encoding_score_bonus(label);
+            (text, label, base_score, score)
+        })
+        .filter(|(_, _, base_score, _)| *base_score > 20)
+        .max_by_key(|(_, _, _, score)| *score)
+        .map(|(text, label, _, _)| (text, label))
+}
+
+#[derive(Clone, Copy)]
+enum Utf16Endian {
+    Little,
+    Big,
+}
+
+fn decode_utf16(bytes: &[u8], endian: Utf16Endian) -> Option<String> {
+    if bytes.len() < 2 || bytes.len() % 2 != 0 {
+        return None;
+    }
+
+    let units = bytes
+        .chunks_exact(2)
+        .map(|chunk| match endian {
+            Utf16Endian::Little => u16::from_le_bytes([chunk[0], chunk[1]]),
+            Utf16Endian::Big => u16::from_be_bytes([chunk[0], chunk[1]]),
+        })
+        .collect::<Vec<_>>();
+    let text = String::from_utf16_lossy(&units);
+    Some(strip_utf16_bom(&text).to_owned())
+}
+
+fn looks_like_utf16(bytes: &[u8], endian: Utf16Endian) -> bool {
+    let pairs = bytes.chunks_exact(2).take(256).collect::<Vec<_>>();
+    if pairs.len() < 4 {
+        return false;
+    }
+    let zero_count = pairs
+        .iter()
+        .filter(|pair| match endian {
+            Utf16Endian::Little => pair[1] == 0,
+            Utf16Endian::Big => pair[0] == 0,
+        })
+        .count();
+    zero_count * 4 >= pairs.len()
+}
+
+fn encoding_score_bonus(label: &str) -> i32 {
+    match label {
+        "utf-16le" | "utf-16be" => 1_000,
+        _ => 0,
+    }
+}
+
+fn strip_utf8_bom(text: &str) -> &str {
+    text.strip_prefix('\u{feff}').unwrap_or(text)
+}
+
+fn strip_utf16_bom(text: &str) -> &str {
+    text.strip_prefix('\u{feff}').unwrap_or(text)
+}
+
+fn text_score(text: &str) -> i32 {
+    let sample = text.chars().take(TEXT_SCORE_SAMPLE);
+    let mut score = 0;
+    let mut count = 0;
+
+    for ch in sample {
+        count += 1;
+        let code = ch as u32;
+        if ch == '\u{fffd}' || ch == '\0' {
+            score -= 60;
+        } else if ch == '\r' || ch == '\n' || ch == '\t' || ch.is_ascii_graphic() || ch == ' ' {
+            score += 3;
+        } else if ('\u{3040}'..='\u{30ff}').contains(&ch)
+            || ('\u{3400}'..='\u{9fff}').contains(&ch)
+            || ('\u{ff00}'..='\u{ffef}').contains(&ch)
+        {
+            score += 4;
+        } else if code < 32 {
+            score -= 30;
+        } else {
+            score += 1;
+        }
+    }
+
+    if count == 0 {
+        return 0;
+    }
+
+    let lowered = text
+        .chars()
+        .take(TEXT_SCORE_SAMPLE)
+        .collect::<String>()
+        .to_ascii_lowercase();
+    for token in [
+        "function", "var ", "storage=", "target=", "@jump", "@call", "[jump", "[call", "//",
+        "\r\n", "\n",
+    ] {
+        score += lowered.matches(token).count() as i32 * 20;
+    }
+
+    score
+}
+
+fn truncate_preview_text(text: &mut String) -> bool {
+    if text.len() <= TEXT_PREVIEW_LIMIT {
+        return false;
+    }
+
+    let mut cutoff = TEXT_PREVIEW_LIMIT;
+    while !text.is_char_boundary(cutoff) {
+        cutoff -= 1;
+    }
+    text.truncate(cutoff);
+    true
 }
 
 pub(crate) fn preview_from_data(ctx: &egui::Context, data: PreviewData) -> Preview {
@@ -183,4 +346,64 @@ fn color32(color: suzu_core::Color, opacity: f32) -> egui::Color32 {
         (color.b.clamp(0.0, 1.0) * 255.0) as u8,
         ((color.a * opacity).clamp(0.0, 1.0) * 255.0) as u8,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn script_preview_decodes_utf16le_without_bom() {
+        let row = row("font/embfontlist.tjs", AssetType::Script);
+        let source = "function main() {\r\n  var value = 1;\r\n}\r\n";
+        let bytes = source
+            .encode_utf16()
+            .flat_map(u16::to_le_bytes)
+            .collect::<Vec<_>>();
+
+        let preview = preview_data_from_bytes(row, bytes);
+
+        let PreviewData::Text { name, text, .. } = preview else {
+            panic!("expected text preview");
+        };
+        assert!(name.contains("utf-16le"));
+        assert!(text.contains("function main()"));
+    }
+
+    #[test]
+    fn script_preview_decodes_shift_jis() {
+        let row = row("scenario/start.ks", AssetType::Script);
+        let bytes = vec![
+            0x82, 0xb1, 0x82, 0xf1, 0x82, 0xc9, 0x82, 0xbf, 0x82, 0xcd, b'\r', b'\n', b'[', b'j',
+            b'u', b'm', b'p', b' ',
+        ];
+
+        let preview = preview_data_from_bytes(row, bytes);
+
+        let PreviewData::Text { name, text, .. } = preview else {
+            panic!("expected text preview");
+        };
+        assert!(name.contains("shift_jis"));
+        assert!(text.contains("\u{3053}\u{3093}\u{306b}\u{3061}\u{306f}"));
+    }
+
+    #[test]
+    fn binary_data_stays_binary_when_decoding_scores_poorly() {
+        let row = row("font/font1_26.tft", AssetType::Data);
+        let bytes = vec![0, 159, 12, 240, 0, 8, 3, 0, 255, 0, 1, 2, 3, 4];
+
+        let preview = preview_data_from_bytes(row, bytes);
+
+        assert!(matches!(preview, PreviewData::Binary { .. }));
+    }
+
+    fn row(name: &str, kind: AssetType) -> EntryRow {
+        EntryRow {
+            name: name.to_owned(),
+            kind,
+            protected: false,
+            original_size: 0,
+            packed_size: 0,
+        }
+    }
 }

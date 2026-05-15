@@ -3858,6 +3858,7 @@ version = "0.1.5"
 dependencies = [
  "anyhow",
  "eframe",
+ "encoding_rs",
  "suzu-app",
  "suzu-asset",
  "suzu-core",
