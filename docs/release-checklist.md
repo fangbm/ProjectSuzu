@@ -7,6 +7,7 @@ Use this checklist before creating a `v*` tag or running a manual GitHub release
 - [ ] Update `CHANGELOG.md`.
 - [ ] Confirm crate versions are intentional.
 - [ ] Confirm `README.md` describes the current feature set.
+- [ ] Confirm `docs/framework-guide.md` reflects the current project workflow.
 - [ ] Confirm `LEGAL.md`, XP3 support boundaries, and `docs/xp3-plugin-interface.md` are included.
 - [ ] Regenerate and review `THIRD_PARTY_LICENSES.md` after dependency changes.
 - [ ] Confirm `assets/branding/README.md` and `docs/api-stability.md` are current.

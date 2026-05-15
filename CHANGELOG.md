@@ -2,6 +2,7 @@
 
 ## 0.1.5 - 2026-05-15
 
+- Added a detailed framework usage guide covering project setup, scripts, assets, runtime APIs, tools, packaging, and troubleshooting.
 - Split the runtime app facade into focused modules while keeping `SuzuApp`, `TitleMenuAction`, and `SystemMenuAction` public exports stable.
 - Split launcher and XP3 viewer GUI entry points into smaller app/UI/helper modules and added headless `--check` commands for launcher, XP3 viewer, and editor.
 - Added a workspace smoke-test crate covering script compilation, runtime progression, package archive loading, save/restore, plaintext XP3 loading, and KAG conversion.

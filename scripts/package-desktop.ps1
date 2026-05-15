@@ -13,6 +13,7 @@ $dist = Join-Path $repo $Output
 $distParent = Split-Path -Parent $dist
 $exeSuffix = if ($IsWindows -or $env:OS -eq "Windows_NT") { ".exe" } else { "" }
 $docFiles = @(
+    "docs/framework-guide.md",
     "docs/implementation-checklist.md",
     "docs/user-guide.md",
     "docs/scripting-reference.md",

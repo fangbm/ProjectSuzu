@@ -34,7 +34,7 @@ git tag v0.1.5
 git push origin v0.1.5
 ```
 
-The workflow uploads per-platform archives containing tools, the visual script editor, benchmark CLI, examples, packed hello-world assets, README, legal notes, branding notes, third-party notices, XP3 interface docs, and core/developer documentation. Release asset filenames include the tag, for example `project-suzu-v0.1.5-windows-x64.tar.gz`.
+The workflow uploads per-platform archives containing tools, the visual script editor, benchmark CLI, examples, packed hello-world assets, README, legal notes, branding notes, third-party notices, the framework guide, XP3 interface docs, and core/developer documentation. Release asset filenames include the tag, for example `project-suzu-v0.1.5-windows-x64.tar.gz`.
 
 Use `docs/release-checklist.md` as the final pre-tag checklist.
 

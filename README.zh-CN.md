@@ -84,7 +84,7 @@ cargo run -p suzu-launcher -- --krkr2suzu "D:\game" "D:\out" --xp3-plugin D:\plu
 
 明文 XP3 支持范围见：[docs/xp3-support.md](docs/xp3-support.md)。外部 XP3 处理器接口说明见：[docs/xp3-plugin-interface.md](docs/xp3-plugin-interface.md)。
 
-API 稳定性说明见：[docs/api-stability.md](docs/api-stability.md)。第三方依赖许可证见：[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md)。品牌素材边界见：[assets/branding/README.md](assets/branding/README.md)。
+完整框架使用指南见：[docs/framework-guide.md](docs/framework-guide.md)。API 稳定性说明见：[docs/api-stability.md](docs/api-stability.md)。第三方依赖许可证见：[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md)。品牌素材边界见：[assets/branding/README.md](assets/branding/README.md)。
 
 性能 smoke test：
 

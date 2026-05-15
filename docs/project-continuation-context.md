@@ -1,6 +1,6 @@
 # Project Suzu Continuation Context
 
-Last updated: 2026-05-15 16:24:17 +08:00
+Last updated: 2026-05-15 16:50:59 +08:00
 
 This is the compressed handoff for continuing Project Suzu. Update this file at the end of each future Codex conversation on this repository before sending the final reply. Treat live `git status`, GitHub Releases, and GitHub Actions as the source of truth when they differ from this note.
 
@@ -18,11 +18,11 @@ This is the compressed handoff for continuing Project Suzu. Update this file at 
 
 - Current branch after this work: `main`.
 - Local `main` has merged `feature/v0.1.5-engineering-convergence` with merge commit `8528359 Merge v0.1.5 engineering convergence`.
-- `origin/main` remains at `347c4a1 Update continuation context after v0.1.4 release`; local `main` is ahead until pushed.
+- `origin/main` was pushed to `ad9a2e5 Document XP3 plugin interface` after the v0.1.5 engineering convergence merge.
 - Feature branch tip before merge: `ada017a Bump workspace to v0.1.5`.
 - `v0.1.4` points at `78df87b` and remains the latest published tag/release unless a later live check says otherwise.
 - `v0.1.5` code, docs, and package metadata are prepared locally, but no `v0.1.5` tag or release has been created in this conversation.
-- After the merge, `docs/xp3-plugin-interface.md` was added locally from the XP3 external processor guide; commit it with this context update.
+- After the last push, `docs/framework-guide.md` was added locally as a detailed Chinese framework usage guide; commit and push it before a v0.1.5 tag.
 - One old stash remains: `stash@{0}: On feature/xp3-archive-support: local xp3 legal cleanup before main merge`. It was retained from earlier cleanup work; do not drop it unless the user asks.
 
 ## v0.1.5 Work Completed
@@ -43,6 +43,8 @@ This is the compressed handoff for continuing Project Suzu. Update this file at 
 - Bumped crate/tool/example/smoke package versions to `0.1.5` and updated `CHANGELOG.md`.
 - Added a formal `docs/xp3-plugin-interface.md` reference for `suzu.xp3-plugin.v1`, covering JSON module fields, external process stdin/stdout protocol, placeholders, stages, authorization, errors, synthetic identity processor examples, security guidance, and review checklist.
 - Linked the new interface document from README files, `docs/xp3-support.md`, `docs/api-stability.md`, release docs, package script, and release workflow.
+- Added `docs/framework-guide.md`, a detailed Chinese guide covering project setup, script writing, resources, runtime APIs, title screen, save/load, settings, desktop integration, tools, packaging, XP3 boundaries, validation, troubleshooting, and compatibility advice.
+- Linked the framework guide from README files and `docs/user-guide.md`, and added it to release/package doc lists and checks.
 
 ## Verification Passed Locally
 
@@ -56,6 +58,7 @@ This is the compressed handoff for continuing Project Suzu. Update this file at 
 - `cargo run -p suzu-editor -- --check`
 - `.\scripts\package-desktop.ps1 -Check`
 - Latest documentation-only check after adding `docs/xp3-plugin-interface.md`: `.\scripts\package-desktop.ps1 -Check` and `git diff --check`.
+- Latest documentation-only check after adding `docs/framework-guide.md`: `.\scripts\package-desktop.ps1 -Check` and `git diff --check`.
 
 ## Release Status
 
