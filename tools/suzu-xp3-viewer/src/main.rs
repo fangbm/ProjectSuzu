@@ -19,7 +19,16 @@ fn main() -> eframe::Result<()> {
         Ok(CliAction::Handled) => return Ok(()),
         Ok(CliAction::LaunchGui { initial_path }) => initial_path,
         Err(error) => {
-            eprintln!("{error:#}");
+            if args
+                .first()
+                .and_then(|arg| arg.to_str())
+                .is_some_and(|arg| arg == "--check")
+            {
+                eprintln!("Project Suzu XP3 Viewer check FAILED");
+                eprintln!("reason: {error:#}");
+            } else {
+                eprintln!("{error:#}");
+            }
             std::process::exit(1);
         }
     };

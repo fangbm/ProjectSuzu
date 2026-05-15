@@ -1,6 +1,8 @@
 /target/
 /dist/
 /.codex/
+/templates/*/target/
+/templates/*/Cargo.lock
 *.pdb
 *.log
 .DS_Store

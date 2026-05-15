@@ -2,7 +2,7 @@
 
 Project Suzu is a Rust visual novel framework. It provides a script compiler, a retained scene model, text reveal and history, save/load state, audio state synchronization, resource packing, and desktop examples.
 
-For a full end-to-end developer guide, see `docs/framework-guide.md`.
+For a first project walkthrough, see `docs/getting-started.md`. For a full end-to-end developer guide, see `docs/framework-guide.md`.
 
 ## Quick Start
 
@@ -10,6 +10,12 @@ Run the hello-world example:
 
 ```powershell
 cargo run -p suzu-hello-world
+```
+
+Run the minimal project template:
+
+```powershell
+cargo run --manifest-path templates\minimal-vn\Cargo.toml
 ```
 
 Compile a script:

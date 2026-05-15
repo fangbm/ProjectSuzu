@@ -1,0 +1,19 @@
+; Project Suzu minimal VN template
+@bg file="bg_room" time=500 method=crossfade
+@char name="hero" face="neutral" x=480 y=32 width=320 height=640 layer=10
+@showmsg
+# 铃
+你好，Project Suzu。[l][r]
+@choice "继续" goto=label_continue
+@choice "结束" goto=label_end
+
+*label_continue
+@anim target="hero" type=move_to x=520 y=32 duration=500
+# 铃
+这是一个最小模板。你可以替换脚本、资源和标题文字，然后继续扩展分支、存档和设置。[l][r]
+@jump goto=label_end
+
+*label_end
+@anim target="hero" type=fade opacity=0 duration=400
+@wait time=400
+@hidechar name="hero"

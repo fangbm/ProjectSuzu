@@ -81,7 +81,9 @@ fn run_check_cli(args: &[OsString]) -> anyhow::Result<()> {
             .with_context(|| format!("failed to load XP3 archive {}", path.display()))?;
     }
 
-    println!("check ok");
+    println!("Project Suzu XP3 Viewer check OK");
+    println!("version: {}", env!("CARGO_PKG_VERSION"));
+    println!("features: xp3, external-xp3-plugin, gui");
     Ok(())
 }
 

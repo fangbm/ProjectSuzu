@@ -14,6 +14,7 @@ $distParent = Split-Path -Parent $dist
 $exeSuffix = if ($IsWindows -or $env:OS -eq "Windows_NT") { ".exe" } else { "" }
 $docFiles = @(
     "docs/framework-guide.md",
+    "docs/getting-started.md",
     "docs/implementation-checklist.md",
     "docs/user-guide.md",
     "docs/scripting-reference.md",
@@ -40,7 +41,7 @@ $binaries = @(
 Push-Location $repo
 try {
     if ($Check) {
-        foreach ($path in @("README.md", "README.zh-CN.md", "CONTRIBUTING.md", "SECURITY.md", "LEGAL.md", "LICENSE-MIT", "LICENSE-APACHE", "THIRD_PARTY_LICENSES.md", "CHANGELOG.md", "assets/branding/Suzu_icon.png", "assets/branding/README.md", $AssetRoot) + $docFiles) {
+        foreach ($path in @("README.md", "README.zh-CN.md", "CONTRIBUTING.md", "SECURITY.md", "LEGAL.md", "LICENSE-MIT", "LICENSE-APACHE", "THIRD_PARTY_LICENSES.md", "CHANGELOG.md", "assets/branding/Suzu_icon.png", "assets/branding/README.md", "templates/minimal-vn", $AssetRoot) + $docFiles) {
             if (-not (Test-Path $path)) {
                 throw "Missing package input: $path"
             }
@@ -67,6 +68,7 @@ try {
     New-Item -ItemType Directory -Force (Join-Path $dist "assets") | Out-Null
     New-Item -ItemType Directory -Force (Join-Path $dist "assets/branding") | Out-Null
     New-Item -ItemType Directory -Force (Join-Path $dist "docs") | Out-Null
+    New-Item -ItemType Directory -Force (Join-Path $dist "templates") | Out-Null
 
     foreach ($binary in $binaries) {
         Copy-Item (Join-Path $targetDir "$binary$exeSuffix") (Join-Path $dist "$binary$exeSuffix")
@@ -86,6 +88,7 @@ try {
     foreach ($docFile in $docFiles) {
         Copy-Item $docFile (Join-Path $dist $docFile)
     }
+    Copy-Item "templates/minimal-vn" (Join-Path $dist "templates/minimal-vn") -Recurse
 
     cargo run -p suzu-packer -- $AssetRoot --pack (Join-Path $dist "assets/hello-world.suzupack")
     cargo run -p suzu-packer -- $AssetRoot --output (Join-Path $dist "assets/hello-world-assets.json")

@@ -65,6 +65,8 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
 
+如果你是第一次搭项目，先读 `docs/getting-started.md`，并从 `templates/minimal-vn` 复制一个最小模板会更快。
+
 运行最小示例：
 
 ```powershell

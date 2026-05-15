@@ -6,6 +6,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use anyhow::Context;
 use eframe::egui;
 use suzu_editor_core::{
     analyze_graph, export_szs, import_szs, Diagnostic, DiagnosticLevel, EditorDocument,
@@ -18,7 +19,16 @@ fn main() -> eframe::Result<()> {
         Ok(CliAction::Handled) => return Ok(()),
         Ok(CliAction::LaunchGui) => {}
         Err(error) => {
-            eprintln!("{error:#}");
+            if args
+                .first()
+                .and_then(|arg| arg.to_str())
+                .is_some_and(|arg| arg == "--check")
+            {
+                eprintln!("Project Suzu Editor check FAILED");
+                eprintln!("reason: {error:#}");
+            } else {
+                eprintln!("{error:#}");
+            }
             std::process::exit(1);
         }
     }
@@ -45,7 +55,7 @@ fn dispatch_cli(args: &[OsString]) -> anyhow::Result<CliAction> {
         .and_then(|arg| arg.to_str())
         .is_some_and(|arg| arg == "--check")
     {
-        run_check_cli(&args[1..])?;
+        run_check_cli(&args[1..]).context("editor check failed")?;
         return Ok(CliAction::Handled);
     }
 
@@ -70,7 +80,9 @@ fn run_check_cli(args: &[OsString]) -> anyhow::Result<()> {
         anyhow::bail!("project root does not exist: {}", project_root.display());
     }
     ProjectIndex::scan(&project_root)?;
-    println!("check ok");
+    println!("Project Suzu Editor check OK");
+    println!("version: {}", env!("CARGO_PKG_VERSION"));
+    println!("features: project-scan, visual-script, gui");
     Ok(())
 }
 

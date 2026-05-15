@@ -107,7 +107,9 @@ fn run_check_cli(args: &[OsString]) -> anyhow::Result<()> {
             .with_context(|| format!("failed to load XP3 archive {}", path.display()))?;
     }
 
-    println!("check ok");
+    println!("Project Suzu Launcher check OK");
+    println!("version: {}", env!("CARGO_PKG_VERSION"));
+    println!("features: xp3, krkr-scan, gui");
     Ok(())
 }
 
@@ -216,6 +218,19 @@ mod tests {
 
         let error = format!("{:#}", dispatch(&args).unwrap_err());
         assert!(error.contains("krkr2suzu failed"));
+        assert!(error.contains(XP3_PLUGIN_AUTHORIZATION_FLAG));
+    }
+
+    #[test]
+    fn check_rejects_plugin_without_authorization_flag() {
+        let args = vec![
+            OsString::from("--check"),
+            OsString::from("--xp3-plugin"),
+            OsString::from("plugin.json"),
+        ];
+
+        let error = format!("{:#}", dispatch(&args).unwrap_err());
+        assert!(error.contains("launcher check failed"));
         assert!(error.contains(XP3_PLUGIN_AUTHORIZATION_FLAG));
     }
 

@@ -18,7 +18,16 @@ fn main() -> eframe::Result<()> {
         Ok(CliAction::Handled) => return Ok(()),
         Ok(CliAction::LaunchGui { initial }) => initial,
         Err(error) => {
-            eprintln!("{error:#}");
+            if args
+                .first()
+                .and_then(|arg| arg.to_str())
+                .is_some_and(|arg| arg == "--check")
+            {
+                eprintln!("Project Suzu Launcher check FAILED");
+                eprintln!("reason: {error:#}");
+            } else {
+                eprintln!("{error:#}");
+            }
             std::process::exit(1);
         }
     };
