@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.6 - 2026-05-15
+
+- Added a getting-started guide and a minimal visual novel template for new projects.
+- Improved GUI `--check` diagnostics so launcher, XP3 viewer, and editor report validated paths and archive/plugin status without opening windows.
+- Made XP3 viewer archive indexing and entry previews run in the background to keep the UI responsive on large archives.
+- Hid external XP3 processor console windows on Windows during preview and asset loading.
+- Added text previews for decoded XP3 script/text entries with UTF-8, UTF-16, and Shift_JIS detection.
+- Kept local project continuation context out of the Git repository.
+
 ## 0.1.5 - 2026-05-15
 
 - Added a detailed framework usage guide covering project setup, scripts, assets, runtime APIs, tools, packaging, and troubleshooting.
