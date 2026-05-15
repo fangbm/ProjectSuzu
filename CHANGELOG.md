@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.5 - 2026-05-15
+
+- Split the runtime app facade into focused modules while keeping `SuzuApp`, `TitleMenuAction`, and `SystemMenuAction` public exports stable.
+- Split launcher and XP3 viewer GUI entry points into smaller app/UI/helper modules and added headless `--check` commands for launcher, XP3 viewer, and editor.
+- Added a workspace smoke-test crate covering script compilation, runtime progression, package archive loading, save/restore, plaintext XP3 loading, and KAG conversion.
+- Added a minimal `suzu-packer` library entry and package archive registration through `AssetManager`.
+- Added `cargo-about` third-party notices, API stability notes, branding guidance, stronger legal/security plugin guidance, and release package checks for trust documentation.
+- Updated CI and release quality gates to run GUI check commands.
+
 ## 0.1.4 - 2026-05-14
 
 - Merged experimental XP3 archive reader and XP3-backed asset loading.
