@@ -1,9 +1,11 @@
 use std::{ffi::OsString, path::PathBuf};
 
 use anyhow::{bail, Context};
-use suzu_asset::{probe_krkr_directory, Xp3Options, Xp3PluginModule};
+use suzu_asset::{probe_krkr_directory, Xp3Archive, Xp3Options, Xp3PluginModule};
+use suzu_editor_core::ProjectIndex;
 
 use crate::conversion::convert_krkr_package_to_suzu_project;
+use crate::paths::{clean_path_input, xp3_path_from_input};
 
 pub const XP3_PLUGIN_AUTHORIZATION_FLAG: &str = "--i-have-rights-to-process-these-assets";
 pub const XP3_PLUGIN_AUTHORIZATION_MESSAGE: &str =
@@ -16,6 +18,14 @@ pub enum CliAction {
 }
 
 pub fn dispatch(args: &[OsString]) -> anyhow::Result<CliAction> {
+    if args
+        .first()
+        .and_then(|arg| arg.to_str())
+        .is_some_and(|arg| arg == "--check")
+    {
+        run_check_cli(&args[1..]).context("launcher check failed")?;
+        return Ok(CliAction::Handled);
+    }
     if args
         .first()
         .and_then(|arg| arg.to_str())
@@ -36,6 +46,69 @@ pub fn dispatch(args: &[OsString]) -> anyhow::Result<CliAction> {
     Ok(CliAction::LaunchGui {
         initial: args.first().map(PathBuf::from).unwrap_or_default(),
     })
+}
+
+fn run_check_cli(args: &[OsString]) -> anyhow::Result<()> {
+    let mut project_root = None;
+    let mut xp3_path = None;
+    let mut plugin_path = None;
+    let mut plugin_authorized = false;
+    let mut index = 0;
+    while index < args.len() {
+        match args[index].to_string_lossy().as_ref() {
+            "--project-root" if index + 1 < args.len() => {
+                project_root = Some(PathBuf::from(clean_path_input(
+                    &args[index + 1].to_string_lossy(),
+                )));
+                index += 2;
+            }
+            "--project-root" => bail!("--project-root requires a folder path"),
+            "--xp3" if index + 1 < args.len() => {
+                xp3_path = Some(
+                    xp3_path_from_input(&args[index + 1].to_string_lossy())
+                        .map_err(|error| anyhow::anyhow!(error))?,
+                );
+                index += 2;
+            }
+            "--xp3" => bail!("--xp3 requires an .xp3 path"),
+            "--xp3-plugin" if index + 1 < args.len() => {
+                plugin_path = Some(PathBuf::from(clean_path_input(
+                    &args[index + 1].to_string_lossy(),
+                )));
+                index += 2;
+            }
+            "--xp3-plugin" => bail!("--xp3-plugin requires a module JSON path"),
+            XP3_PLUGIN_AUTHORIZATION_FLAG => {
+                plugin_authorized = true;
+                index += 1;
+            }
+            other => bail!("unknown check option `{other}`"),
+        }
+    }
+
+    if let Some(root) = project_root {
+        ProjectIndex::scan(&root)
+            .with_context(|| format!("failed to scan project root {}", root.display()))?;
+    }
+
+    let options = if let Some(plugin_path) = plugin_path {
+        if !plugin_authorized {
+            bail!("{XP3_PLUGIN_AUTHORIZATION_MESSAGE} Pass `{XP3_PLUGIN_AUTHORIZATION_FLAG}` to continue.");
+        }
+        Xp3PluginModule::from_json_file(&plugin_path)
+            .with_context(|| format!("failed to load XP3 plugin {}", plugin_path.display()))?
+            .xp3_options()
+    } else {
+        Xp3Options::default()
+    };
+
+    if let Some(path) = xp3_path {
+        Xp3Archive::from_file_with_options(&path, options)
+            .with_context(|| format!("failed to load XP3 archive {}", path.display()))?;
+    }
+
+    println!("check ok");
+    Ok(())
 }
 
 fn run_krkr2suzu_cli(args: &[OsString]) -> anyhow::Result<()> {
