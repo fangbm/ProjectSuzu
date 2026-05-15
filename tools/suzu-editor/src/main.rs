@@ -1,6 +1,7 @@
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
 use std::{
+    ffi::OsString,
     fs,
     path::{Path, PathBuf},
 };
@@ -12,6 +13,16 @@ use suzu_editor_core::{
 };
 
 fn main() -> eframe::Result<()> {
+    let args = std::env::args_os().skip(1).collect::<Vec<_>>();
+    match dispatch_cli(&args) {
+        Ok(CliAction::Handled) => return Ok(()),
+        Ok(CliAction::LaunchGui) => {}
+        Err(error) => {
+            eprintln!("{error:#}");
+            std::process::exit(1);
+        }
+    }
+
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_inner_size([1280.0, 760.0]),
         ..Default::default()
@@ -21,6 +32,56 @@ fn main() -> eframe::Result<()> {
         options,
         Box::new(|_cc| Box::<EditorApp>::default()),
     )
+}
+
+enum CliAction {
+    Handled,
+    LaunchGui,
+}
+
+fn dispatch_cli(args: &[OsString]) -> anyhow::Result<CliAction> {
+    if args
+        .first()
+        .and_then(|arg| arg.to_str())
+        .is_some_and(|arg| arg == "--check")
+    {
+        run_check_cli(&args[1..])?;
+        return Ok(CliAction::Handled);
+    }
+
+    Ok(CliAction::LaunchGui)
+}
+
+fn run_check_cli(args: &[OsString]) -> anyhow::Result<()> {
+    let mut project_root = std::env::current_dir()?;
+    let mut index = 0;
+    while index < args.len() {
+        match args[index].to_string_lossy().as_ref() {
+            "--project-root" if index + 1 < args.len() => {
+                project_root = PathBuf::from(clean_path_input(&args[index + 1].to_string_lossy()));
+                index += 2;
+            }
+            "--project-root" => anyhow::bail!("--project-root requires a folder path"),
+            other => anyhow::bail!("unknown check option `{other}`"),
+        }
+    }
+
+    if !project_root.exists() {
+        anyhow::bail!("project root does not exist: {}", project_root.display());
+    }
+    ProjectIndex::scan(&project_root)?;
+    println!("check ok");
+    Ok(())
+}
+
+fn clean_path_input(input: &str) -> String {
+    let mut value = input.trim().trim_matches(['"', '\'']).trim().to_owned();
+    if let Some(rest) = value.strip_prefix("file:///") {
+        value = rest.replace('/', "\\");
+    } else if let Some(rest) = value.strip_prefix("file://") {
+        value = rest.replace('/', "\\");
+    }
+    value
 }
 
 struct EditorApp {

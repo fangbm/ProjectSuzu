@@ -271,6 +271,20 @@ mod tests {
     }
 
     #[test]
+    fn rejects_unsupported_plugin_module_format() {
+        let error = Xp3PluginModule::from_json_str(
+            r#"{
+                "format": "suzu.xp3-plugin.v2",
+                "xp3": { "processors": [] }
+            }"#,
+        )
+        .unwrap_err()
+        .to_string();
+
+        assert!(error.contains("unsupported XP3 plugin module format"));
+    }
+
+    #[test]
     fn expands_external_processor_arguments() {
         let entry = Xp3Entry {
             name: "main/default.tjs".to_owned(),

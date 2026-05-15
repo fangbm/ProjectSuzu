@@ -20,6 +20,9 @@ jobs:
       - run: cargo test --workspace
       - run: cargo doc --workspace --no-deps
       - run: cargo test -p suzu-script --features lua
+      - run: cargo run -p suzu-launcher -- --check
+      - run: cargo run -p suzu-xp3-viewer -- --check
+      - run: cargo run -p suzu-editor -- --check
       - shell: pwsh
         run: ./scripts/package-desktop.ps1 -Check
 
@@ -69,16 +72,24 @@ jobs:
           Copy-Item LEGAL.md dist/LEGAL.md
           Copy-Item LICENSE-MIT dist/LICENSE-MIT
           Copy-Item LICENSE-APACHE dist/LICENSE-APACHE
+          Copy-Item THIRD_PARTY_LICENSES.md dist/THIRD_PARTY_LICENSES.md
           Copy-Item CHANGELOG.md dist/CHANGELOG.md
           Copy-Item assets/branding/Suzu_icon.png dist/assets/branding/Suzu_icon.png
+          Copy-Item assets/branding/README.md dist/assets/branding/README.md
           Copy-Item docs/implementation-checklist.md dist/docs/implementation-checklist.md
           Copy-Item docs/user-guide.md dist/docs/user-guide.md
           Copy-Item docs/scripting-reference.md dist/docs/scripting-reference.md
           Copy-Item docs/xp3-support.md dist/docs/xp3-support.md
+          Copy-Item docs/api-stability.md dist/docs/api-stability.md
           Copy-Item docs/visual-script-editor-development-plan.md dist/docs/visual-script-editor-development-plan.md
           Copy-Item docs/release-packaging.md dist/docs/release-packaging.md
           Copy-Item docs/developer-checks.md dist/docs/developer-checks.md
           Copy-Item docs/release-checklist.md dist/docs/release-checklist.md
+          foreach ($required in @("THIRD_PARTY_LICENSES.md", "assets/branding/README.md", "LEGAL.md", "SECURITY.md", "docs/xp3-support.md", "docs/api-stability.md")) {
+            if (-not (Test-Path "dist/$required")) {
+              throw "Missing release package file: $required"
+            }
+          }
           & "target/release/suzu-packer${{ matrix.exe }}" examples/hello-world --pack dist/assets/hello-world.suzupack
           & "target/release/suzu-packer${{ matrix.exe }}" examples/hello-world --output dist/assets/hello-world-assets.json
 

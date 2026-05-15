@@ -5,7 +5,9 @@ use std::thread::JoinHandle;
 
 use anyhow::{bail, Context, Result};
 
-use crate::{AssetId, AssetType, PackageManifest, TextureAsset, Xp3Archive, Xp3Options};
+use crate::{
+    AssetId, AssetType, PackageArchive, PackageManifest, TextureAsset, Xp3Archive, Xp3Options,
+};
 
 #[derive(Debug, Clone)]
 pub struct AssetRecord {
@@ -20,9 +22,17 @@ struct Xp3AssetSource {
     entry_name: String,
 }
 
+#[derive(Debug, Clone)]
+struct PackageAssetSource {
+    archive_index: usize,
+    asset_id: String,
+}
+
 #[derive(Debug, Default)]
 pub struct AssetManager {
     records: HashMap<AssetId, AssetRecord>,
+    package_archives: Vec<PackageArchive>,
+    package_sources: HashMap<AssetId, PackageAssetSource>,
     xp3_archives: Vec<Xp3Archive>,
     xp3_sources: HashMap<AssetId, Xp3AssetSource>,
     texture_cache: HashMap<AssetId, TextureAsset>,
@@ -113,6 +123,33 @@ impl AssetManager {
         Ok(self.register_manifest(&manifest))
     }
 
+    pub fn register_package_file(&mut self, path: impl AsRef<Path>) -> Result<usize> {
+        let path = path.as_ref();
+        let archive = PackageArchive::from_file(path)?;
+        let archive_index = self.package_archives.len();
+        let mut count = 0;
+
+        for entry in &archive.manifest().assets {
+            if entry.kind == AssetType::Unknown {
+                continue;
+            }
+            let id = AssetId::from(entry.id.clone());
+            let virtual_path = PathBuf::from(format!("{}!{}", path.display(), entry.path));
+            self.register_path(id.clone(), entry.kind, virtual_path);
+            self.package_sources.insert(
+                id,
+                PackageAssetSource {
+                    archive_index,
+                    asset_id: entry.id.clone(),
+                },
+            );
+            count += 1;
+        }
+
+        self.package_archives.push(archive);
+        Ok(count)
+    }
+
     pub fn register_xp3_file(&mut self, path: impl AsRef<Path>) -> Result<usize> {
         self.register_xp3_file_with_options(path, Xp3Options::default())
     }
@@ -151,6 +188,10 @@ impl AssetManager {
 
     pub fn load_texture(&self, id: impl Into<AssetId>) -> Result<TextureAsset> {
         let id = id.into();
+        if let Some(bytes) = self.load_package_bytes(&id)? {
+            return TextureAsset::from_bytes(&bytes)
+                .with_context(|| format!("failed to load package texture `{}`", id.0));
+        }
         if let Some(bytes) = self.load_xp3_bytes(&id)? {
             return TextureAsset::from_bytes(&bytes)
                 .with_context(|| format!("failed to load XP3 texture `{}`", id.0));
@@ -162,6 +203,9 @@ impl AssetManager {
 
     pub fn load_asset_bytes(&self, id: impl Into<AssetId>) -> Result<Vec<u8>> {
         let id = id.into();
+        if let Some(bytes) = self.load_package_bytes(&id)? {
+            return Ok(bytes);
+        }
         if let Some(bytes) = self.load_xp3_bytes(&id)? {
             return Ok(bytes);
         }
@@ -192,6 +236,21 @@ impl AssetManager {
 
     pub fn load_texture_async(&self, id: impl Into<AssetId>) -> Result<AsyncTextureLoad> {
         let id = id.into();
+        if let Some(source) = self.package_sources.get(&id).cloned() {
+            let archive = self
+                .package_archives
+                .get(source.archive_index)
+                .cloned()
+                .with_context(|| format!("package archive for `{}` is not registered", id.0))?;
+            let thread_id = id.clone();
+            let handle = std::thread::spawn(move || {
+                let bytes = archive.read_asset(&source.asset_id)?;
+                TextureAsset::from_bytes(&bytes)
+                    .with_context(|| format!("failed to load package texture `{}`", thread_id.0))
+            });
+            return Ok(AsyncTextureLoad { id, handle });
+        }
+
         if let Some(source) = self.xp3_sources.get(&id).cloned() {
             let archive = self
                 .xp3_archives
@@ -272,6 +331,20 @@ impl AssetManager {
             .read_file(&source.entry_name)
             .map(Some)
             .with_context(|| format!("failed to read XP3 asset `{}`", id.0))
+    }
+
+    fn load_package_bytes(&self, id: &AssetId) -> Result<Option<Vec<u8>>> {
+        let Some(source) = self.package_sources.get(id) else {
+            return Ok(None);
+        };
+        let archive = self
+            .package_archives
+            .get(source.archive_index)
+            .with_context(|| format!("package archive for `{}` is not registered", id.0))?;
+        archive
+            .read_asset(&source.asset_id)
+            .map(Some)
+            .with_context(|| format!("failed to read package asset `{}`", id.0))
     }
 
     fn insert_cached_texture(&mut self, id: AssetId, texture: TextureAsset) {

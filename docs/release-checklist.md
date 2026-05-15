@@ -8,6 +8,8 @@ Use this checklist before creating a `v*` tag or running a manual GitHub release
 - [ ] Confirm crate versions are intentional.
 - [ ] Confirm `README.md` describes the current feature set.
 - [ ] Confirm `LEGAL.md` and XP3 support boundaries are included.
+- [ ] Regenerate and review `THIRD_PARTY_LICENSES.md` after dependency changes.
+- [ ] Confirm `assets/branding/README.md` and `docs/api-stability.md` are current.
 
 ## Verification
 
@@ -16,19 +18,22 @@ Use this checklist before creating a `v*` tag or running a manual GitHub release
 - [ ] `cargo test --workspace`
 - [ ] `cargo doc --workspace --no-deps`
 - [ ] `cargo test -p suzu-script --features lua`
+- [ ] `cargo run -p suzu-launcher -- --check`
+- [ ] `cargo run -p suzu-xp3-viewer -- --check`
+- [ ] `cargo run -p suzu-editor -- --check`
 - [ ] `cargo run -p suzu-bench -- 100`
 - [ ] `.\scripts\package-desktop.ps1 -Check`
 
 ## Local Package
 
 - [ ] `.\scripts\package-desktop.ps1`
-- [ ] Confirm `dist/project-suzu-desktop.zip` contains tools, examples, docs, licenses, changelog, and packed assets.
+- [ ] Confirm `dist/project-suzu-desktop.zip` contains tools, examples, docs, licenses, third-party notices, branding notes, changelog, and packed assets.
 
 ## Tag Release
 
 ```powershell
-git tag v0.1.4
-git push origin v0.1.4
+git tag v0.1.5
+git push origin v0.1.5
 ```
 
 The GitHub release workflow builds platform artifacts and publishes archives for tags matching `v*`.

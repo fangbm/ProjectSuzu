@@ -22,6 +22,11 @@ For now, report security issues privately to the project maintainers before publ
 
 - `.suzupack` archive parsing and checksum validation;
 - recursive asset discovery and package output paths;
+- XP3 plugin module JSON, external processor command resolution, and plugin stdin/stdout byte processing;
 - Lua extension registration when the `lua` feature is enabled;
 - save-game JSON loading;
 - GitHub release and local packaging scripts.
+
+## External XP3 Plugins
+
+External XP3 plugins are intentionally not bundled with Project Suzu. A plugin module can launch an arbitrary executable, so only run modules from trusted sources and only for assets you are authorized to process. Keep plugin paths local, avoid shell wrappers when possible, and verify that processor output preserves byte counts unless the schema explicitly changes in a future version.
