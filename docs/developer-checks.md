@@ -11,6 +11,16 @@ cargo test --workspace
 cargo doc --workspace --no-deps
 ```
 
+## GUI Check Gate
+
+```powershell
+cargo run -p suzu-launcher -- --check
+cargo run -p suzu-xp3-viewer -- --check
+cargo run -p suzu-editor -- --check
+```
+
+These commands validate headless startup paths without opening windows.
+
 ## Optional Feature Gate
 
 ```powershell
@@ -25,6 +35,12 @@ cargo test -p suzu-script --features lua
 ```
 
 The `-Check` mode validates package inputs without building. The full packaging command creates `dist/project-suzu-desktop.zip`.
+
+Regenerate third-party notices after dependency changes:
+
+```powershell
+cargo about generate about-markdown.hbs --workspace --locked --fail -o THIRD_PARTY_LICENSES.md
+```
 
 ## Benchmark Smoke Test
 

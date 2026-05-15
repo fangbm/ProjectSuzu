@@ -17,6 +17,7 @@ $docFiles = @(
     "docs/user-guide.md",
     "docs/scripting-reference.md",
     "docs/xp3-support.md",
+    "docs/api-stability.md",
     "docs/visual-script-editor-development-plan.md",
     "docs/release-packaging.md",
     "docs/developer-checks.md",
@@ -37,7 +38,7 @@ $binaries = @(
 Push-Location $repo
 try {
     if ($Check) {
-        foreach ($path in @("README.md", "README.zh-CN.md", "CONTRIBUTING.md", "SECURITY.md", "LEGAL.md", "LICENSE-MIT", "LICENSE-APACHE", "CHANGELOG.md", "assets/branding/Suzu_icon.png", $AssetRoot) + $docFiles) {
+        foreach ($path in @("README.md", "README.zh-CN.md", "CONTRIBUTING.md", "SECURITY.md", "LEGAL.md", "LICENSE-MIT", "LICENSE-APACHE", "THIRD_PARTY_LICENSES.md", "CHANGELOG.md", "assets/branding/Suzu_icon.png", "assets/branding/README.md", $AssetRoot) + $docFiles) {
             if (-not (Test-Path $path)) {
                 throw "Missing package input: $path"
             }
@@ -76,8 +77,10 @@ try {
     Copy-Item "LEGAL.md" (Join-Path $dist "LEGAL.md")
     Copy-Item "LICENSE-MIT" (Join-Path $dist "LICENSE-MIT")
     Copy-Item "LICENSE-APACHE" (Join-Path $dist "LICENSE-APACHE")
+    Copy-Item "THIRD_PARTY_LICENSES.md" (Join-Path $dist "THIRD_PARTY_LICENSES.md")
     Copy-Item "CHANGELOG.md" (Join-Path $dist "CHANGELOG.md")
     Copy-Item "assets/branding/Suzu_icon.png" (Join-Path $dist "assets/branding/Suzu_icon.png")
+    Copy-Item "assets/branding/README.md" (Join-Path $dist "assets/branding/README.md")
     foreach ($docFile in $docFiles) {
         Copy-Item $docFile (Join-Path $dist $docFile)
     }
