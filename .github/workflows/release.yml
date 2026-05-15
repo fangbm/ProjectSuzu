@@ -20,6 +20,9 @@ jobs:
       - run: cargo test --workspace
       - run: cargo doc --workspace --no-deps
       - run: cargo test -p suzu-script --features lua
+      - run: cargo run -p suzu-launcher -- --check
+      - run: cargo run -p suzu-xp3-viewer -- --check
+      - run: cargo run -p suzu-editor -- --check
       - shell: pwsh
         run: ./scripts/package-desktop.ps1 -Check
 
