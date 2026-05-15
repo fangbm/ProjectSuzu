@@ -14,7 +14,7 @@ Project Suzu is pre-1.0. Public APIs are kept steady when practical, but crates 
 
 - Renderer internals and frame-building details.
 - Desktop GUI layout and editor data model.
-- XP3 plugin module schema beyond `suzu.xp3-plugin.v1`.
+- XP3 plugin module schema beyond `suzu.xp3-plugin.v1`; the current interface is documented in `docs/xp3-plugin-interface.md`.
 - KRKR/KAG conversion heuristics.
 - Lua extension registration under the optional `lua` feature.
 
