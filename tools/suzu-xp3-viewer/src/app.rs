@@ -51,6 +51,7 @@ pub(crate) enum Preview {
         name: String,
         text: String,
         truncated: bool,
+        warning: Option<String>,
     },
     Binary {
         name: String,

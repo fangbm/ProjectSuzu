@@ -9,6 +9,8 @@ use crate::app::{EntryRow, Preview};
 
 const TEXT_PREVIEW_LIMIT: usize = 20_000;
 const TEXT_SCORE_SAMPLE: usize = 8_000;
+const SUSPICIOUS_CJK_RUN_LIMIT: usize = 96;
+const SUSPICIOUS_TEXT_NOTICE: &str = "[Project Suzu XP3 Viewer: stopped text preview at a suspicious undecoded run. The external XP3 plugin may have returned partially decoded bytes, or this entry may contain an obfuscated string literal.]";
 
 pub(crate) enum PreviewData {
     Image {
@@ -20,6 +22,7 @@ pub(crate) enum PreviewData {
         name: String,
         text: String,
         truncated: bool,
+        warning: Option<String>,
     },
     Binary {
         name: String,
@@ -50,11 +53,13 @@ pub(crate) fn preview_data_from_bytes(row: EntryRow, bytes: Vec<u8>) -> PreviewD
         },
         AssetType::Script | AssetType::Data => match decode_text_preview(&bytes) {
             Some((mut text, label)) => {
+                let warning = prepare_decoded_text(&mut text, label);
                 let truncated = truncate_preview_text(&mut text);
                 PreviewData::Text {
                     name: format!("{} · {}", row.name, label),
                     text,
                     truncated,
+                    warning,
                 }
             }
             None => PreviewData::Binary {
@@ -169,6 +174,45 @@ fn encoding_score_bonus(label: &str) -> i32 {
     }
 }
 
+fn prepare_decoded_text(text: &mut String, label: &str) -> Option<String> {
+    if label != "shift_jis" {
+        return None;
+    }
+
+    stop_at_suspicious_cjk_run(text)
+        .then(|| "Suspicious Shift_JIS text run hidden from preview.".to_owned())
+}
+
+fn stop_at_suspicious_cjk_run(text: &mut String) -> bool {
+    let mut run_start = 0;
+    let mut run_len = 0;
+
+    for (index, ch) in text.char_indices() {
+        if is_cjk_ideograph(ch) {
+            if run_len == 0 {
+                run_start = index;
+            }
+            run_len += 1;
+            if run_len >= SUSPICIOUS_CJK_RUN_LIMIT {
+                text.truncate(run_start);
+                if !text.ends_with('\n') {
+                    text.push_str("\n\n");
+                }
+                text.push_str(SUSPICIOUS_TEXT_NOTICE);
+                return true;
+            }
+        } else {
+            run_len = 0;
+        }
+    }
+
+    false
+}
+
+fn is_cjk_ideograph(ch: char) -> bool {
+    ('\u{3400}'..='\u{9fff}').contains(&ch)
+}
+
 fn strip_utf8_bom(text: &str) -> &str {
     text.strip_prefix('\u{feff}').unwrap_or(text)
 }
@@ -248,10 +292,12 @@ pub(crate) fn preview_from_data(ctx: &egui::Context, data: PreviewData) -> Previ
             name,
             text,
             truncated,
+            warning,
         } => Preview::Text {
             name,
             text,
             truncated,
+            warning,
         },
         PreviewData::Binary { name, bytes, kind } => Preview::Binary { name, bytes, kind },
         PreviewData::Error { name, message } => Preview::Error { name, message },
@@ -380,11 +426,39 @@ mod tests {
 
         let preview = preview_data_from_bytes(row, bytes);
 
-        let PreviewData::Text { name, text, .. } = preview else {
+        let PreviewData::Text {
+            name,
+            text,
+            warning,
+            ..
+        } = preview
+        else {
             panic!("expected text preview");
         };
         assert!(name.contains("shift_jis"));
         assert!(text.contains("\u{3053}\u{3093}\u{306b}\u{3061}\u{306f}"));
+        assert!(warning.is_none());
+    }
+
+    #[test]
+    fn shift_jis_preview_hides_suspicious_undecoded_run() {
+        let row = row("AppConfig.tjs", AssetType::Script);
+        let source = format!(
+            "global.ENV_GameURL = \"{}\";\r\n",
+            "\u{6e6f}".repeat(SUSPICIOUS_CJK_RUN_LIMIT + 8)
+        );
+        let (encoded, _, had_errors) = SHIFT_JIS.encode(&source);
+        assert!(!had_errors);
+
+        let preview = preview_data_from_bytes(row, encoded.into_owned());
+
+        let PreviewData::Text { text, warning, .. } = preview else {
+            panic!("expected text preview");
+        };
+        assert!(warning.is_some());
+        assert!(text.contains("global.ENV_GameURL = \""));
+        assert!(text.contains(SUSPICIOUS_TEXT_NOTICE));
+        assert!(!text.contains(&"\u{6e6f}".repeat(SUSPICIOUS_CJK_RUN_LIMIT)));
     }
 
     #[test]

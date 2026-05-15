@@ -117,18 +117,17 @@ impl Xp3ViewerApp {
                 name,
                 text,
                 truncated,
+                warning,
             } => {
                 ui.label(if *truncated {
                     format!("{name} · text preview truncated")
                 } else {
                     format!("{name} · text")
                 });
-                ui.add(
-                    egui::TextEdit::multiline(&mut text.as_str())
-                        .font(egui::TextStyle::Monospace)
-                        .desired_width(f32::INFINITY)
-                        .desired_rows(28),
-                );
+                if let Some(warning) = warning {
+                    ui.colored_label(egui::Color32::from_rgb(180, 118, 0), warning);
+                }
+                scrollable_text_preview(ui, text);
             }
             Preview::Binary { name, bytes, kind } => {
                 ui.label(format!("{name} · {:?} · {bytes} bytes", kind));
@@ -184,6 +183,25 @@ impl Xp3ViewerApp {
         render_frame(ui.painter(), rect, &frame, &mut game.textures);
         ui.ctx().request_repaint();
     }
+}
+
+fn scrollable_text_preview(ui: &mut egui::Ui, text: &str) {
+    let available = ui.available_size();
+    let viewport_size = egui::vec2(available.x.max(1.0), available.y.max(120.0));
+    let (rect, _) = ui.allocate_exact_size(viewport_size, egui::Sense::hover());
+    let mut viewport_ui = ui.child_ui(rect, egui::Layout::top_down_justified(egui::Align::LEFT));
+
+    egui::ScrollArea::vertical()
+        .id_source("xp3_text_preview_scroll")
+        .auto_shrink([false, false])
+        .show(&mut viewport_ui, |ui| {
+            ui.set_width(rect.width().max(1.0));
+            ui.add(
+                egui::Label::new(egui::RichText::new(text).monospace())
+                    .wrap(true)
+                    .selectable(true),
+            );
+        });
 }
 
 impl eframe::App for Xp3ViewerApp {
