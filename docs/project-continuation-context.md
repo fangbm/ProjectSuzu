@@ -1,6 +1,6 @@
 # Project Suzu Continuation Context
 
-Last updated: 2026-05-15 18:56:40 +08:00
+Last updated: 2026-05-15 19:08:22 +08:00
 
 This is the compressed handoff for continuing Project Suzu. Update this file at the end of each future Codex conversation on this repository before sending the final reply. Treat live `git status`, GitHub Releases, and GitHub Actions as the source of truth when they differ from this note.
 
@@ -74,6 +74,17 @@ This is the compressed handoff for continuing Project Suzu. Update this file at 
   - The plugin command is `C:\ProgramData\miniconda3\python.exe` with stage `after_inflate`.
 - Real-file `suzu-xp3-viewer --check --xp3 ... --xp3-plugin ... --i-have-rights-to-process-these-assets` passed.
 - Real-folder `suzu-launcher --krkr-probe "D:\Program Files\まいてつ Last Run!!"` passed and reported 12 XP3 archives, with `data.xp3` containing 3220 entries, 817 script-like protected entries, and entrypoint candidates `main/default.tjs`, `scenario/start.ks`, `startup.tjs`.
+
+## 2026-05-15 Local XP3 Plugin Speed Tuning
+
+- The local user plugin `C:\Users\方便面\Documents\New project 3\maitetsu-xp3-plugin\authorized_xp3_processor.py` was optimized outside the repository.
+- Replaced the pure Python byte-by-byte XOR loop with cached `bytes.translate` tables.
+- Reduced fallback text key inference sample size from 64 KiB to 4 KiB to avoid very slow 256-key scoring on every script preview.
+- Synthetic local benchmark results:
+  - 16 MiB PNG-style XOR sample: about `3946ms` before, about `246-285ms` after.
+  - 1 MiB text auto-inference sample: about `10636ms` before, about `990ms` after.
+- Output correctness check passed for the PNG signature sample, and real `data.xp3` plus local plugin still passed `suzu-xp3-viewer --check`.
+- Further possible speedups, if needed: add a long-lived external processor protocol to avoid Python startup per entry, compile the authorized processor to a native executable, or add viewer-side preview result caching for repeated entry selections.
 
 ## Verification Passed Locally
 
