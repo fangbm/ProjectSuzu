@@ -9,6 +9,7 @@ use crate::app::{EntryRow, Preview};
 
 const TEXT_PREVIEW_LIMIT: usize = 20_000;
 const TEXT_SCORE_SAMPLE: usize = 8_000;
+const TJS_BYTECODE_STRING_LIMIT: usize = 80;
 const SUSPICIOUS_CJK_RUN_LIMIT: usize = 96;
 const SUSPICIOUS_TEXT_NOTICE: &str = "[Project Suzu XP3 Viewer: stopped text preview at a suspicious undecoded run. The external XP3 plugin may have returned partially decoded bytes, or this entry may contain an obfuscated string literal.]";
 
@@ -51,23 +52,34 @@ pub(crate) fn preview_data_from_bytes(row: EntryRow, bytes: Vec<u8>) -> PreviewD
                 message: format!("{error:#}"),
             },
         },
-        AssetType::Script | AssetType::Data => match decode_text_preview(&bytes) {
-            Some((mut text, label)) => {
-                let warning = prepare_decoded_text(&mut text, label);
-                let truncated = truncate_preview_text(&mut text);
-                PreviewData::Text {
-                    name: format!("{} · {}", row.name, label),
+        AssetType::Script | AssetType::Data => {
+            if let Some(text) = tjs_bytecode_preview(&bytes) {
+                return PreviewData::Text {
+                    name: format!("{} · tjs bytecode", row.name),
                     text,
-                    truncated,
-                    warning,
-                }
+                    truncated: false,
+                    warning: None,
+                };
             }
-            None => PreviewData::Binary {
-                name: row.name,
-                bytes: bytes.len(),
-                kind: row.kind,
-            },
-        },
+
+            match decode_text_preview(&bytes) {
+                Some((mut text, label)) => {
+                    let warning = prepare_decoded_text(&mut text, label);
+                    let truncated = truncate_preview_text(&mut text);
+                    PreviewData::Text {
+                        name: format!("{} · {}", row.name, label),
+                        text,
+                        truncated,
+                        warning,
+                    }
+                }
+                None => PreviewData::Binary {
+                    name: row.name,
+                    bytes: bytes.len(),
+                    kind: row.kind,
+                },
+            }
+        }
         kind => PreviewData::Binary {
             name: row.name,
             bytes: bytes.len(),
@@ -128,6 +140,49 @@ fn decode_text_preview(bytes: &[u8]) -> Option<(String, &'static str)> {
         .filter(|(_, _, base_score, _)| *base_score > 20)
         .max_by_key(|(_, _, _, score)| *score)
         .map(|(text, label, _, _)| (text, label))
+}
+
+fn tjs_bytecode_preview(bytes: &[u8]) -> Option<String> {
+    if !bytes.starts_with(b"TJS2100\0") {
+        return None;
+    }
+
+    let mut strings = Vec::new();
+    let mut offset = 8;
+    while offset + 4 <= bytes.len() && strings.len() < TJS_BYTECODE_STRING_LIMIT {
+        let len = u32::from_le_bytes(bytes[offset..offset + 4].try_into().ok()?) as usize;
+        let byte_len = len.checked_mul(2)?;
+        let string_start = offset + 4;
+        let string_end = string_start.checked_add(byte_len)?;
+        if (1..=256).contains(&len) && string_end <= bytes.len() {
+            let candidate = &bytes[string_start..string_end];
+            if looks_like_utf16(candidate, Utf16Endian::Little) {
+                if let Some(text) = decode_utf16(candidate, Utf16Endian::Little) {
+                    let text = text.trim_matches('\0').to_owned();
+                    if text.chars().any(|ch| !ch.is_control()) {
+                        strings.push(text);
+                        offset = string_end;
+                        continue;
+                    }
+                }
+            }
+        }
+        offset += 1;
+    }
+
+    let mut preview = format!(
+        "TJS2 bytecode detected.\n\nmagic: TJS2100\nbytes: {}\n\nThis entry is compiled Kirikiri TJS bytecode, not plaintext script source.",
+        bytes.len()
+    );
+    if !strings.is_empty() {
+        preview.push_str("\n\nString constants:\n");
+        for value in strings {
+            preview.push_str("- ");
+            preview.push_str(&value);
+            preview.push('\n');
+        }
+    }
+    Some(preview)
 }
 
 #[derive(Clone, Copy)]
@@ -469,6 +524,23 @@ mod tests {
         let preview = preview_data_from_bytes(row, bytes);
 
         assert!(matches!(preview, PreviewData::Binary { .. }));
+    }
+
+    #[test]
+    fn script_preview_identifies_tjs_bytecode() {
+        let row = row("dmm/dmmauth.tjs", AssetType::Script);
+        let mut bytes = b"TJS2100\0DATA".to_vec();
+        bytes.extend_from_slice(&6_u32.to_le_bytes());
+        bytes.extend("global".encode_utf16().flat_map(u16::to_le_bytes));
+
+        let preview = preview_data_from_bytes(row, bytes);
+
+        let PreviewData::Text { name, text, .. } = preview else {
+            panic!("expected TJS bytecode preview");
+        };
+        assert!(name.contains("tjs bytecode"));
+        assert!(text.contains("TJS2 bytecode detected"));
+        assert!(text.contains("global"));
     }
 
     fn row(name: &str, kind: AssetType) -> EntryRow {

@@ -9,7 +9,7 @@ pub(crate) fn asset_type_from_path(path: &str) -> AssetType {
         .map(str::to_ascii_lowercase)
         .as_deref()
     {
-        Some("png" | "jpg" | "jpeg" | "webp") => AssetType::Texture,
+        Some("png" | "jpg" | "jpeg" | "webp" | "tlg") => AssetType::Texture,
         Some("ogg" | "wav" | "mp3" | "flac") => AssetType::Audio,
         Some("szs" | "ks" | "tjs" | "txt") => AssetType::Script,
         Some("ttf" | "otf") => AssetType::Font,
@@ -77,5 +77,10 @@ mod tests {
     #[test]
     fn rejects_non_xp3_path() {
         assert!(xp3_path_from_input(r"D:\games\Suzu\data.zip").is_err());
+    }
+
+    #[test]
+    fn treats_tlg_as_texture_for_plugin_preview() {
+        assert_eq!(asset_type_from_path("image/bg.tlg"), AssetType::Texture);
     }
 }
