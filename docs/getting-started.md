@@ -56,6 +56,12 @@ cargo run -p suzu-branching-story
 cargo run -p suzu-ui-save-load-demo
 ```
 
+短篇 VN 闭环示例：
+
+```powershell
+cargo run -p suzu-short-vn-demo
+```
+
 这些示例默认使用内置脚本和 fallback texture。即使没有外部图片资源，也能看到可运行画面。
 
 ## 4. 从最小模板开始

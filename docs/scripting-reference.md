@@ -27,11 +27,17 @@ Supported inline tags:
 
 ```text
 @bg file="classroom.png" method=crossfade time=500
+@bg file="platform.png" method=fade_color color=#101828 time=800
 @char name=eileen face=smile pos=left layer=10 flip=false
+@char name=eileen face=smile x=460 y=32 width=360 height=720 layer=10
 @hidechar name=eileen
-@anim target=eileen kind=shake intensity=8 time=300
-@fx kind=flash color=#ffffff time=120
+@anim target=eileen type=move_to x=520 y=32 duration=500
+@anim target=eileen type=fade opacity=0 duration=400
+@fx type=flash color=#ffffff duration=120
+@fx type=quake intensity=8 duration=300
 ```
+
+`@bg` supports `method=crossfade`, `method=fade_color`, `method=fade-through-color`, and instant fallback when `method` is omitted or unknown. Character `face=neutral` maps to the texture id in `name`; other faces map to `name_face`, for example `name=eileen face=smile` uses `eileen_smile`.
 
 ## Flow Commands
 

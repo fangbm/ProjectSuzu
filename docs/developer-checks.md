@@ -49,3 +49,12 @@ cargo run -p suzu-bench -- 100
 ```
 
 Use larger iteration counts when comparing performance across changes. Release packages include `suzu-bench` so benchmarks can be run against packaged builds too.
+
+## Short Demo Smoke Test
+
+```powershell
+cargo run -p suzu-compiler -- examples\short-vn-demo\script\main.szs
+cargo run -p suzu-packer -- examples\short-vn-demo --pack target\short-vn-demo.suzupack
+```
+
+The full workspace test already compiles `suzu-short-vn-demo` and the smoke tests compile `.szs` scripts under `examples/`.

@@ -66,6 +66,7 @@ jobs:
           Copy-Item "target/release/suzu-hello-world${{ matrix.exe }}" "dist/suzu-hello-world${{ matrix.exe }}"
           Copy-Item "target/release/suzu-branching-story${{ matrix.exe }}" "dist/suzu-branching-story${{ matrix.exe }}"
           Copy-Item "target/release/suzu-ui-save-load-demo${{ matrix.exe }}" "dist/suzu-ui-save-load-demo${{ matrix.exe }}"
+          Copy-Item "target/release/suzu-short-vn-demo${{ matrix.exe }}" "dist/suzu-short-vn-demo${{ matrix.exe }}"
           Copy-Item README.md dist/README.md
           Copy-Item README.zh-CN.md dist/README.zh-CN.md
           Copy-Item CONTRIBUTING.md dist/CONTRIBUTING.md
@@ -82,6 +83,7 @@ jobs:
           Copy-Item docs/implementation-checklist.md dist/docs/implementation-checklist.md
           Copy-Item docs/user-guide.md dist/docs/user-guide.md
           Copy-Item docs/scripting-reference.md dist/docs/scripting-reference.md
+          Copy-Item docs/short-vn-demo.md dist/docs/short-vn-demo.md
           Copy-Item docs/xp3-support.md dist/docs/xp3-support.md
           Copy-Item docs/xp3-plugin-interface.md dist/docs/xp3-plugin-interface.md
           Copy-Item docs/api-stability.md dist/docs/api-stability.md
@@ -90,13 +92,15 @@ jobs:
           Copy-Item docs/developer-checks.md dist/docs/developer-checks.md
           Copy-Item docs/release-checklist.md dist/docs/release-checklist.md
           Copy-Item templates/minimal-vn dist/templates/minimal-vn -Recurse
-          foreach ($required in @("THIRD_PARTY_LICENSES.md", "assets/branding/README.md", "LEGAL.md", "SECURITY.md", "docs/framework-guide.md", "docs/getting-started.md", "docs/xp3-support.md", "docs/xp3-plugin-interface.md", "docs/api-stability.md", "templates/minimal-vn/README.md")) {
+          foreach ($required in @("THIRD_PARTY_LICENSES.md", "assets/branding/README.md", "LEGAL.md", "SECURITY.md", "docs/framework-guide.md", "docs/getting-started.md", "docs/short-vn-demo.md", "docs/xp3-support.md", "docs/xp3-plugin-interface.md", "docs/api-stability.md", "templates/minimal-vn/README.md")) {
             if (-not (Test-Path "dist/$required")) {
               throw "Missing release package file: $required"
             }
           }
           & "target/release/suzu-packer${{ matrix.exe }}" examples/hello-world --pack dist/assets/hello-world.suzupack
           & "target/release/suzu-packer${{ matrix.exe }}" examples/hello-world --output dist/assets/hello-world-assets.json
+          & "target/release/suzu-packer${{ matrix.exe }}" examples/short-vn-demo --pack dist/assets/short-vn-demo.suzupack
+          & "target/release/suzu-packer${{ matrix.exe }}" examples/short-vn-demo --output dist/assets/short-vn-demo-assets.json
 
       - uses: actions/upload-artifact@v4
         with:

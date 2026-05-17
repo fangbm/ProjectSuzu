@@ -14,6 +14,7 @@ members = [
     "examples/hello-world",
     "examples/branching-story",
     "examples/ui-save-load-demo",
+    "examples/short-vn-demo",
     "tools/suzu-packer",
     "tools/suzu-compiler",
     "tools/suzu-bench",

@@ -1,0 +1,52 @@
+@script version=1
+@savename text="Short VN Demo - Station Morning"
+@bg file="bg_station_morning" method=crossfade time=700
+@playbgm file="audio/morning_loop.ogg" loop=true fadein=1200
+@char name="suzu" face="smile" x=460 y=36 width=340 height=680 layer=10
+@showmsg
+@voice file="voice/suzu_001.ogg"
+# Suzu
+The train is late, but the demo is right on time.[l][r]
+# Ren
+Then let us prove the whole route works before the next release.
+@choice "Help Suzu organize the notes" goto=help_suzu
+@choice "Inspect the platform gate first" goto=inspect_gate
+
+*help_suzu
+@set name=suzu_trust value=60
+@char name="suzu" face="thinking" x=500 y=36 width=340 height=680 layer=10
+@voice file="voice/suzu_002.ogg"
+# Suzu
+Good. The notes say we need a title screen, choices, variables, saves, and packaging.
+@jump goto=after_choice
+
+*inspect_gate
+@set name=suzu_trust value=35
+@char name="ren" face="neutral" x=140 y=56 width=320 height=640 layer=9 flip=true
+# Ren
+The gate is open. The only missing piece is a tiny story that uses the framework honestly.
+
+*after_choice
+@bg file="bg_library_afternoon" method=fade_color color=#101828 time=900
+@anim target="suzu" type=move_to x=540 y=36 duration=600
+@if cond=suzu_trust>=50
+# Suzu
+Because you helped, the route unlocks the easier explanation first.
+@else
+# Suzu
+Because you checked the gate, the route keeps the technical explanation short.
+@endif
+@autosave
+# Ren
+Autosave has captured this scene. Slot 0 is also seeded from startup, so the load menu has something to show.
+@bg file="bg_platform_evening" method=crossfade time=700
+@fx type=flash color=#FFFFFF duration=180
+@wait time=250
+# Suzu
+History, auto mode, and the system menu are runtime features. Try cancel, save, load, and auto from here.[l][r]
+@stopbgm fadeout=800
+@anim target="suzu" type=fade opacity=0 duration=500
+@wait time=500
+@hidechar name="suzu"
+# Ren
+Short demo complete. Next step: replace fallback colors with open-licensed art and audio.

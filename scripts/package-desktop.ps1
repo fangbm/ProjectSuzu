@@ -18,6 +18,7 @@ $docFiles = @(
     "docs/implementation-checklist.md",
     "docs/user-guide.md",
     "docs/scripting-reference.md",
+    "docs/short-vn-demo.md",
     "docs/xp3-support.md",
     "docs/xp3-plugin-interface.md",
     "docs/api-stability.md",
@@ -35,13 +36,14 @@ $binaries = @(
     "suzu-xp3-viewer",
     "suzu-hello-world",
     "suzu-branching-story",
-    "suzu-ui-save-load-demo"
+    "suzu-ui-save-load-demo",
+    "suzu-short-vn-demo"
 )
 
 Push-Location $repo
 try {
     if ($Check) {
-        foreach ($path in @("README.md", "README.zh-CN.md", "CONTRIBUTING.md", "SECURITY.md", "LEGAL.md", "LICENSE-MIT", "LICENSE-APACHE", "THIRD_PARTY_LICENSES.md", "CHANGELOG.md", "assets/branding/Suzu_icon.png", "assets/branding/README.md", "templates/minimal-vn", $AssetRoot) + $docFiles) {
+        foreach ($path in @("README.md", "README.zh-CN.md", "CONTRIBUTING.md", "SECURITY.md", "LEGAL.md", "LICENSE-MIT", "LICENSE-APACHE", "THIRD_PARTY_LICENSES.md", "CHANGELOG.md", "assets/branding/Suzu_icon.png", "assets/branding/README.md", "templates/minimal-vn", "examples/short-vn-demo", $AssetRoot) + $docFiles) {
             if (-not (Test-Path $path)) {
                 throw "Missing package input: $path"
             }
@@ -92,6 +94,8 @@ try {
 
     cargo run -p suzu-packer -- $AssetRoot --pack (Join-Path $dist "assets/hello-world.suzupack")
     cargo run -p suzu-packer -- $AssetRoot --output (Join-Path $dist "assets/hello-world-assets.json")
+    cargo run -p suzu-packer -- examples/short-vn-demo --pack (Join-Path $dist "assets/short-vn-demo.suzupack")
+    cargo run -p suzu-packer -- examples/short-vn-demo --output (Join-Path $dist "assets/short-vn-demo-assets.json")
 
     Compress-Archive -Path (Join-Path $dist "*") -DestinationPath "$dist.zip" -Force
     Write-Host "Packaged desktop release at $dist.zip"

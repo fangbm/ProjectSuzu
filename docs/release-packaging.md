@@ -10,7 +10,7 @@ Run:
 .\scripts\package-desktop.ps1
 ```
 
-The script builds the workspace, copies example binaries and desktop tools including `suzu-launcher`, `suzu-editor`, and `suzu-xp3-viewer`, includes user documentation and `templates/minimal-vn`, packs hello-world assets into `.suzupack`, writes a JSON manifest, and creates `dist/project-suzu-desktop.zip`.
+The script builds the workspace, copies example binaries and desktop tools including `suzu-launcher`, `suzu-editor`, and `suzu-xp3-viewer`, includes user documentation and `templates/minimal-vn`, packs hello-world and short-demo assets into `.suzupack`, writes JSON manifests, and creates `dist/project-suzu-desktop.zip`.
 The package also includes the Project Suzu icon and branding notes, `CONTRIBUTING.md`, `SECURITY.md`, `LEGAL.md`, `LICENSE-MIT`, `LICENSE-APACHE`, `THIRD_PARTY_LICENSES.md`, and `CHANGELOG.md`.
 
 Check package inputs without building:
@@ -34,7 +34,7 @@ git tag v0.1.6
 git push origin v0.1.6
 ```
 
-The workflow uploads per-platform archives containing tools, the visual script editor, benchmark CLI, examples, packed hello-world assets, README, legal notes, branding notes, third-party notices, the getting-started guide, framework guide, minimal template, XP3 interface docs, and core/developer documentation. Release asset filenames include the tag, for example `project-suzu-v0.1.6-windows-x64.tar.gz`.
+The workflow uploads per-platform archives containing tools, the visual script editor, benchmark CLI, examples, packed hello-world and short-demo assets, README, legal notes, branding notes, third-party notices, the getting-started guide, framework guide, short-demo plan, minimal template, XP3 interface docs, and core/developer documentation. Release asset filenames include the tag, for example `project-suzu-v0.1.6-windows-x64.tar.gz`.
 
 Use `docs/release-checklist.md` as the final pre-tag checklist.
 

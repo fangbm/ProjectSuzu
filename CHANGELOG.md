@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Split the desktop platform layer, script compiler, and app runtime tests into focused modules for the v0.1.7 convergence pass.
+- Added the first `examples/short-vn-demo` slice and planning documentation for the complete short VN proof.
+- Updated scripting reference examples to match current `@anim` and `@fx` attribute names.
+
 ## 0.1.6 - 2026-05-15
 
 - Added a getting-started guide and a minimal visual novel template for new projects.
