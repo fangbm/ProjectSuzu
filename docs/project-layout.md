@@ -63,6 +63,8 @@ suzu-launcher --check --project-root my-game
 suzu-editor --check --project-root my-game
 ```
 
+When `suzu-player` starts without a project root and the current folder is not a Suzu project, it looks for the bundled `templates/krkr-like-vn` project beside the executable or under the current folder. This makes double-clicking `suzu-player` in a release package open the included starter project instead of failing on `.\scenario\main.szs`.
+
 During development, prefer `syntax=indent` in new scripts:
 
 ```text

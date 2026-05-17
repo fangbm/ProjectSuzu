@@ -63,6 +63,8 @@ suzu-launcher --check --project-root my-game
 suzu-editor --check --project-root my-game
 ```
 
+当 `suzu-player` 没有收到工程目录，并且当前目录也不是 Suzu 工程时，它会尝试打开可执行文件旁边或当前目录下的 `templates/krkr-like-vn`。这样在 release 包根目录双击 `suzu-player` 会进入内置 starter project，而不是因为缺少 `.\scenario\main.szs` 直接报错。
+
 新脚本推荐使用 `syntax=indent`：
 
 ```text
