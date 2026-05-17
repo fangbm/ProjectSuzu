@@ -14,9 +14,9 @@ The first checked-in slice is intentionally lightweight:
 
 This keeps CI fast while making the demo a real executable instead of a design note.
 
-## Completion Target
+## Next Completion Target
 
-Before `v0.2.0`, the demo should become a short tutorial-ready VN:
+After `v0.2.0`, the demo should continue toward a short tutorial-ready VN:
 
 - 3 to 5 minutes of play time
 - at least two meaningful routes and one converged ending

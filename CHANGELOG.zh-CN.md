@@ -2,12 +2,17 @@
 
 ## 未发布
 
-- 为 v0.1.7 工程收敛拆分桌面平台层、脚本编译器和 app runtime 测试。
+## 0.2.0 - 2026-05-17
+
+- 为 v0.2.0 工程收敛拆分桌面平台层、脚本编译器和 app runtime 测试。
 - 增加首个 `examples/short-vn-demo` 切片，以及完整短篇 VN proof 的规划文档。
 - 更新脚本参考，让 `@anim` 和 `@fx` 示例匹配当前属性名。
 - 增加 `syntax=indent`、`syntax=braces`、`syntax=markup` parser front end，并保持现有 classic `.szs` 语法为默认。
 - 为仓库文档、模板、示例和 release package 增加简体中文配套文档。
 - 改进内置标题界面，支持可配置背景纹理、本地化菜单文本、读档/设置子页和鼠标命中。
+- 修复桌面标题界面和系统菜单的鼠标交互，扩大对话框 next 提示区域，并让脚本结束后清空最后一句对白。
+- 增加通过 `game.suzu.toml`、`scenario/main.szs`、`suzu-project` 和零代码 `suzu-player` 启动的 KRKR 风格低门槛工程流程。
+- 增加 `templates/krkr-like-vn`、工程布局文档、launcher 的运行/检查/打开编辑器动作，以及 `bg`、`ch`、`voice` 等短脚本命令。
 
 ## 0.1.6 - 2026-05-15
 

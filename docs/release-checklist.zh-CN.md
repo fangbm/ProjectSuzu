@@ -35,8 +35,8 @@
 ## Tag Release
 
 ```powershell
-git tag v0.1.6
-git push origin v0.1.6
+git tag v0.2.0
+git push origin v0.2.0
 ```
 
 GitHub release workflow 会为匹配 `v*` 的 tag 构建平台产物并发布 archive。

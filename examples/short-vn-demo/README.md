@@ -1,6 +1,6 @@
 # Project Suzu Short VN Demo
 
-This example is the first pass at the complete short visual novel demo planned for the post-`v0.1.6` development direction.
+This example is the first pass at the complete short visual novel demo planned for the `0.2.x` development direction.
 
 Run it from the repository root:
 

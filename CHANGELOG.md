@@ -2,12 +2,17 @@
 
 ## Unreleased
 
-- Split the desktop platform layer, script compiler, and app runtime tests into focused modules for the v0.1.7 convergence pass.
+## 0.2.0 - 2026-05-17
+
+- Split the desktop platform layer, script compiler, and app runtime tests into focused modules for the v0.2.0 convergence pass.
 - Added the first `examples/short-vn-demo` slice and planning documentation for the complete short VN proof.
 - Updated scripting reference examples to match current `@anim` and `@fx` attribute names.
 - Added parser front ends for `syntax=indent`, `syntax=braces`, and `syntax=markup` while keeping the existing classic `.szs` syntax as the default.
 - Added Simplified Chinese companion documentation across repository docs, templates, examples, and release packages.
 - Improved the built-in title screen with configurable background textures, localizable labels, load/settings subpages, and pointer hit-testing.
+- Fixed desktop pointer interactions for the built-in title screen and system menu, widened the dialogue next prompt, and made exhausted scripts clear the final message box.
+- Added low-friction, KRKR-like project loading through `game.suzu.toml`, `scenario/main.szs`, `suzu-project`, and the zero-code `suzu-player` launcher.
+- Added `templates/krkr-like-vn`, project layout documentation, launcher project run/check/editor actions, and short script command aliases such as `bg`, `ch`, and `voice`.
 
 ## 0.1.6 - 2026-05-15
 

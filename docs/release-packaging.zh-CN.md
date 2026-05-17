@@ -31,11 +31,11 @@ Project Suzu 支持两条发布路径：本地桌面打包和 GitHub tag release
 `.github/workflows/release.yml` 会在匹配 `v*` 的 tag 上构建 Linux 和 Windows 产物。
 
 ```powershell
-git tag v0.1.6
-git push origin v0.1.6
+git tag v0.2.0
+git push origin v0.2.0
 ```
 
-workflow 上传的每个平台 archive 会包含工具、零代码 player、可视化剧本编辑器、benchmark CLI、示例、打包后的 hello-world 与 short-demo 资源、README、法律说明、品牌说明、第三方许可证声明、快速上手、框架指南、工程布局指南、短篇 demo 计划、低门槛模板、Rust 集成模板、XP3 接口文档和核心/开发文档。Release asset 文件名会包含 tag，例如 `project-suzu-v0.1.6-windows-x64.tar.gz`。
+workflow 上传的每个平台 archive 会包含工具、零代码 player、可视化剧本编辑器、benchmark CLI、示例、打包后的 hello-world 与 short-demo 资源、README、法律说明、品牌说明、第三方许可证声明、快速上手、框架指南、工程布局指南、短篇 demo 计划、低门槛模板、Rust 集成模板、XP3 接口文档和核心/开发文档。Release asset 文件名会包含 tag，例如 `project-suzu-v0.2.0-windows-x64.tar.gz`。
 
 最后打 tag 前使用 `docs/release-checklist.zh-CN.md`。
 
