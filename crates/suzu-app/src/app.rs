@@ -274,6 +274,13 @@ impl SuzuApp {
         self.assets.register_manifest_file(path)
     }
 
+    pub fn register_package_file(
+        &mut self,
+        path: impl AsRef<std::path::Path>,
+    ) -> anyhow::Result<usize> {
+        self.assets.register_package_file(path)
+    }
+
     pub fn register_xp3_file(
         &mut self,
         path: impl AsRef<std::path::Path>,

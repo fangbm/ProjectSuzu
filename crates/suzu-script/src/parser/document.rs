@@ -3,6 +3,7 @@ use super::{braces, indent, markup, AstNode, Attribute, ScriptDocument, ScriptSy
 const COMMAND_NAMES: &[&str] = &[
     "script",
     "bg",
+    "ch",
     "char",
     "hidechar",
     "hide",

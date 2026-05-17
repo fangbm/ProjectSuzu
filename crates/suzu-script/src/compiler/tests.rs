@@ -79,6 +79,33 @@ fn compiles_background_command() {
 }
 
 #[test]
+fn compiles_short_background_alias() {
+    let commands = compile_script("@bg school").unwrap();
+
+    assert!(matches!(&commands[0], Command::Bg { file, .. } if file == "school"));
+}
+
+#[test]
+fn compiles_short_character_alias() {
+    let commands = compile_script("@ch suzu normal").unwrap();
+
+    assert!(matches!(
+        &commands[0],
+        Command::Char { name, face, .. } if name == "suzu" && face == "normal"
+    ));
+}
+
+#[test]
+fn compiles_short_voice_alias() {
+    let commands = compile_script("@voice suzu_001").unwrap();
+
+    assert!(matches!(
+        &commands[0],
+        Command::CueVoice { file, .. } if file == "suzu_001"
+    ));
+}
+
+#[test]
 fn unknown_command_reports_span_and_suggestion() {
     let error = compile_script("# N\n@bgg file=\"school\"").unwrap_err();
 

@@ -1,0 +1,18 @@
+title = "KRKR Like Suzu Project"
+subtitle = "Script first, Rust optional"
+entry = "scenario/main.szs"
+
+[title_screen]
+enabled = true
+
+[window]
+title = "KRKR Like Suzu Project"
+width = 1280
+height = 720
+resizable = true
+
+[assets]
+roots = ["assets"]
+
+[package]
+files = []

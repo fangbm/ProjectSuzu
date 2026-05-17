@@ -1,0 +1,18 @@
+@script version=1 syntax=indent
+
+savename text="Opening"
+bg title_bg
+Narrator: This project can run through suzu-player without writing Rust.
+Narrator: Keep scripts under scenario/ and resources under assets/.
+
+choice "Start the scene" goto=start
+choice "Jump to the ending" goto=ending
+
+label start:
+voice suzu_001
+Suzu: The script uses the indent style, which is close to the way scenario writers usually think.
+Suzu: Short commands such as bg title_bg and voice suzu_001 are expanded by the compiler.
+jump goto=ending
+
+label ending:
+Narrator: End of the low-friction Project Suzu template.

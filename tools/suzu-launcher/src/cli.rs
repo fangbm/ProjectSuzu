@@ -2,7 +2,7 @@ use std::{ffi::OsString, path::PathBuf};
 
 use anyhow::{bail, Context};
 use suzu_asset::{probe_krkr_directory, Xp3Archive, Xp3Options, Xp3PluginModule};
-use suzu_editor_core::ProjectIndex;
+use suzu_project::{check_project, ProjectLoadOptions};
 
 use crate::conversion::convert_krkr_package_to_suzu_project;
 use crate::paths::{clean_path_input, xp3_path_from_input};
@@ -87,8 +87,8 @@ fn run_check_cli(args: &[OsString]) -> anyhow::Result<()> {
     }
 
     if let Some(root) = project_root {
-        ProjectIndex::scan(&root)
-            .with_context(|| format!("failed to scan project root {}", root.display()))?;
+        check_project(&root, ProjectLoadOptions::default())
+            .with_context(|| format!("failed to check project root {}", root.display()))?;
     }
 
     let options = if let Some(plugin_path) = plugin_path {

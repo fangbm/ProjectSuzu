@@ -12,12 +12,13 @@ use suzu_editor_core::{
     analyze_graph, export_szs, import_szs, Diagnostic, DiagnosticLevel, EditorDocument,
     EditorNodeKind, ProjectIndex,
 };
+use suzu_project::{check_project, ProjectLoadOptions};
 
 fn main() -> eframe::Result<()> {
     let args = std::env::args_os().skip(1).collect::<Vec<_>>();
-    match dispatch_cli(&args) {
+    let initial_project_root = match dispatch_cli(&args) {
         Ok(CliAction::Handled) => return Ok(()),
-        Ok(CliAction::LaunchGui) => {}
+        Ok(CliAction::LaunchGui { initial }) => initial,
         Err(error) => {
             if args
                 .first()
@@ -31,7 +32,7 @@ fn main() -> eframe::Result<()> {
             }
             std::process::exit(1);
         }
-    }
+    };
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_inner_size([1280.0, 760.0]),
@@ -40,13 +41,13 @@ fn main() -> eframe::Result<()> {
     eframe::run_native(
         "Project Suzu Editor",
         options,
-        Box::new(|_cc| Box::<EditorApp>::default()),
+        Box::new(move |_cc| Box::new(EditorApp::new(initial_project_root))),
     )
 }
 
 enum CliAction {
     Handled,
-    LaunchGui,
+    LaunchGui { initial: PathBuf },
 }
 
 fn dispatch_cli(args: &[OsString]) -> anyhow::Result<CliAction> {
@@ -59,16 +60,20 @@ fn dispatch_cli(args: &[OsString]) -> anyhow::Result<CliAction> {
         return Ok(CliAction::Handled);
     }
 
-    Ok(CliAction::LaunchGui)
+    Ok(CliAction::LaunchGui {
+        initial: args.first().map(PathBuf::from).unwrap_or_default(),
+    })
 }
 
 fn run_check_cli(args: &[OsString]) -> anyhow::Result<()> {
     let mut project_root = std::env::current_dir()?;
+    let mut project_root_provided = false;
     let mut index = 0;
     while index < args.len() {
         match args[index].to_string_lossy().as_ref() {
             "--project-root" if index + 1 < args.len() => {
                 project_root = PathBuf::from(clean_path_input(&args[index + 1].to_string_lossy()));
+                project_root_provided = true;
                 index += 2;
             }
             "--project-root" => anyhow::bail!("--project-root requires a folder path"),
@@ -76,10 +81,11 @@ fn run_check_cli(args: &[OsString]) -> anyhow::Result<()> {
         }
     }
 
-    if !project_root.exists() {
-        anyhow::bail!("project root does not exist: {}", project_root.display());
+    if project_root_provided {
+        check_project(&project_root, ProjectLoadOptions::default())?;
+    } else {
+        ProjectIndex::scan(&project_root)?;
     }
-    ProjectIndex::scan(&project_root)?;
     println!("Project Suzu Editor check OK");
     println!("version: {}", env!("CARGO_PKG_VERSION"));
     println!("features: project-scan, visual-script, gui");
@@ -107,20 +113,7 @@ struct EditorApp {
 
 impl Default for EditorApp {
     fn default() -> Self {
-        let project_root = std::env::current_dir()
-            .unwrap_or_else(|_| PathBuf::from("."))
-            .display()
-            .to_string();
-        let mut app = Self {
-            project_root,
-            project: None,
-            document: EditorDocument::default(),
-            selected_node: None,
-            diagnostics: Vec::new(),
-            status: "Open a Project Suzu folder to begin.".to_owned(),
-        };
-        app.scan_project();
-        app
+        Self::new(PathBuf::new())
     }
 }
 
@@ -144,6 +137,24 @@ impl eframe::App for EditorApp {
 }
 
 impl EditorApp {
+    fn new(initial_project_root: PathBuf) -> Self {
+        let project_root = if initial_project_root.as_os_str().is_empty() {
+            std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+        } else {
+            initial_project_root
+        };
+        let mut app = Self {
+            project_root: project_root.display().to_string(),
+            project: None,
+            document: EditorDocument::default(),
+            selected_node: None,
+            diagnostics: Vec::new(),
+            status: "Open a Project Suzu folder to begin.".to_owned(),
+        };
+        app.scan_project();
+        app
+    }
+
     fn menu_bar(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             ui.heading("Project Suzu Editor");

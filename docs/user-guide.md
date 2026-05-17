@@ -1,6 +1,6 @@
 # Project Suzu User Guide
 
-Project Suzu is a Rust visual novel framework. It provides a script compiler, a retained scene model, text reveal and history, save/load state, audio state synchronization, resource packing, and desktop examples.
+Project Suzu is a Rust visual novel framework. It provides a script compiler, a low-friction project runner, a retained scene model, text reveal and history, save/load state, audio state synchronization, resource packing, and desktop examples.
 
 For a first project walkthrough, see `docs/getting-started.md`. For a full end-to-end developer guide, see `docs/framework-guide.md`.
 
@@ -12,7 +12,14 @@ Run the hello-world example:
 cargo run -p suzu-hello-world
 ```
 
-Run the minimal project template:
+Run the low-friction project template without writing Rust:
+
+```powershell
+cargo run -p suzu-player -- templates\krkr-like-vn
+cargo run -p suzu-player -- --check templates\krkr-like-vn
+```
+
+Run the Rust integration template:
 
 ```powershell
 cargo run --manifest-path templates\minimal-vn\Cargo.toml
@@ -61,6 +68,7 @@ cargo run -p suzu-xp3-viewer -- D:\game\data.xp3
 ## Project Layout
 
 - `crates/suzu-app`: high-level visual novel app facade.
+- `crates/suzu-project`: `game.suzu.toml` and convention-based project loading.
 - `crates/suzu-script`: DSL parser, compiler, VM command queue, diagnostics, and extension registration.
 - `crates/suzu-render`: render layer data, transitions, post-process configuration, and shader loading.
 - `crates/suzu-text`: markup normalization, reveal state, ruby data, vertical layout, and voice reveal sync.
@@ -70,18 +78,18 @@ cargo run -p suzu-xp3-viewer -- D:\game\data.xp3
 - `crates/suzu-input`: keyboard, mouse, wheel, and selection trigger maps.
 - `crates/suzu-platform`: desktop `winit`/`wgpu` integration and platform configuration types.
 - `crates/suzu-editor-core`: visual script editor document model, import/export, graph diagnostics, project scan, and undo commands.
+- `tools/suzu-player`: zero-code player for standard Suzu project folders.
 - `tools/suzu-launcher`: unified desktop entry app for opening Suzu projects, importing XP3 archives, and running previews.
 - `tools/suzu-xp3-viewer`: desktop XP3 inspection and image/text preview tool.
 
 ## Runtime Flow
 
-1. Parse `.szs` source into a `ScriptDocument`. The parser detects `syntax=classic`, `syntax=indent`, `syntax=braces`, or `syntax=markup` from the script header.
-2. Compile the document into VM commands.
-3. Feed commands into `SuzuApp`.
-4. Optionally show the title screen when `GameConfig.title_screen.enabled` is true.
-5. Advance the app with frame deltas and input events.
-6. Render the app scene using the platform renderer.
-7. Capture saves through the save manager.
+1. `suzu-player` or `suzu-launcher` reads `game.suzu.toml`, then falls back to `scenario/main.szs` or `script/main.szs` by convention.
+2. The project loader registers loose assets, package archives, and the entry script.
+3. Parse `.szs` source into a `ScriptDocument`. The parser detects `syntax=classic`, `syntax=indent`, `syntax=braces`, or `syntax=markup` from the script header.
+4. Compile the document into VM commands and feed them into `SuzuApp`.
+5. Optionally show the title screen when `GameConfig.title_screen.enabled` is true.
+6. Advance the app with frame deltas and input events, render the scene, and capture saves through the save manager.
 
 ## XP3 Resources
 
@@ -118,6 +126,7 @@ Set `GameConfig.title_screen.enabled = true` to start on a title menu instead of
 - `examples/branching-story`: title screen, choices, labels, and conditional variables.
 - `examples/ui-save-load-demo`: title screen, save/load, settings, history, and menu flows.
 - `examples/short-vn-demo`: first complete short VN slice covering title screen, choices, variables, autosave, effects, and packaging.
+- `templates/krkr-like-vn`: standard no-Rust project layout for script-first authors.
 - `examples/stress-scene`: script-level stress scene for benchmark inputs.
 - `examples/web-browser-shell`: static browser canvas shell for future Wasm bundles.
 

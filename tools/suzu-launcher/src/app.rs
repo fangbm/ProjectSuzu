@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf};
+use std::{fs, path::PathBuf, process::Command};
 
 use eframe::egui;
 use suzu_asset::{
@@ -6,6 +6,9 @@ use suzu_asset::{
     Xp3PluginModule,
 };
 use suzu_editor_core::ProjectIndex;
+use suzu_project::{
+    check_project, load_project, write_default_project_config, ProjectCheck, ProjectLoadOptions,
+};
 
 use crate::cli::XP3_PLUGIN_AUTHORIZATION_MESSAGE;
 use crate::conversion::{convert_krkr_package_to_suzu_project, krkr_entry_looks_like_entrypoint};
@@ -18,6 +21,7 @@ use crate::preview::{install_cjk_fonts, preview_app, GamePreview};
 pub(crate) struct LauncherApp {
     pub(crate) project_path: String,
     pub(crate) project: Option<ProjectIndex>,
+    pub(crate) project_check: Option<ProjectCheck>,
     pub(crate) selected_project_script: Option<usize>,
     pub(crate) xp3_path: String,
     pub(crate) krkr_path: String,
@@ -66,6 +70,7 @@ impl LauncherApp {
         let mut app = Self {
             project_path: String::new(),
             project: None,
+            project_check: None,
             selected_project_script: None,
             xp3_path: String::new(),
             krkr_path: String::new(),
@@ -101,20 +106,99 @@ impl LauncherApp {
         let path = clean_path_input(&self.project_path);
         match ProjectIndex::scan(&path) {
             Ok(project) => {
-                self.status = format!(
-                    "Project loaded: {} scripts, {} resources.",
-                    project.scripts.len(),
-                    project.resources.len()
-                );
+                self.project_check =
+                    match check_project(&project.root, ProjectLoadOptions::default()) {
+                        Ok(report) => Some(report),
+                        Err(error) => {
+                            self.status =
+                                format!("Project scanned, but standard check failed: {error:#}");
+                            None
+                        }
+                    };
+                if let Some(report) = &self.project_check {
+                    self.status = format!(
+                        "Project ready: {} scripts, {} resources, entry {}.",
+                        project.scripts.len(),
+                        project.resources.len(),
+                        report.entry_path.display()
+                    );
+                }
                 self.project_path = project.root.display().to_string();
-                self.selected_project_script = (!project.scripts.is_empty()).then_some(0);
+                self.selected_project_script = self
+                    .project_check
+                    .as_ref()
+                    .and_then(|report| {
+                        report
+                            .entry_path
+                            .strip_prefix(&project.root)
+                            .ok()
+                            .and_then(|entry| {
+                                project.scripts.iter().position(|script| script == entry)
+                            })
+                    })
+                    .or_else(|| (!project.scripts.is_empty()).then_some(0));
                 self.project = Some(project);
                 self.game = None;
             }
             Err(error) => {
                 self.project = None;
+                self.project_check = None;
                 self.selected_project_script = None;
                 self.status = format!("Failed to open project: {error:#}");
+            }
+        }
+    }
+
+    pub(crate) fn check_project(&mut self) {
+        let path = PathBuf::from(clean_path_input(&self.project_path));
+        match check_project(&path, ProjectLoadOptions::default()) {
+            Ok(report) => {
+                self.status = format!(
+                    "Project check OK: {} assets, {} packages, entry {}.",
+                    report.registered_assets,
+                    report.registered_packages,
+                    report.entry_path.display()
+                );
+                self.project_check = Some(report);
+            }
+            Err(error) => {
+                self.project_check = None;
+                self.status = format!("Project check failed: {error:#}");
+            }
+        }
+    }
+
+    pub(crate) fn create_project_config(&mut self) {
+        let path = PathBuf::from(clean_path_input(&self.project_path));
+        match write_default_project_config(&path) {
+            Ok(config_path) => {
+                self.status = format!("Created {}.", config_path.display());
+                self.scan_project();
+            }
+            Err(error) => {
+                self.status = format!("Failed to create project config: {error:#}");
+            }
+        }
+    }
+
+    pub(crate) fn open_project_in_editor(&mut self) {
+        let project_path = PathBuf::from(clean_path_input(&self.project_path));
+        if project_path.as_os_str().is_empty() {
+            self.status = "Open a project folder first.".to_owned();
+            return;
+        }
+        let editor = std::env::current_exe()
+            .map(|mut path| {
+                path.set_file_name(format!("suzu-editor{}", std::env::consts::EXE_SUFFIX));
+                path
+            })
+            .unwrap_or_else(|_| PathBuf::from("suzu-editor"));
+        match Command::new(&editor).arg(&project_path).spawn() {
+            Ok(_) => {
+                self.status = format!("Opened editor for {}.", project_path.display());
+            }
+            Err(error) => {
+                self.status = format!("Failed to open editor {}: {error}", editor.display());
             }
         }
     }
@@ -336,24 +420,46 @@ impl LauncherApp {
             return;
         };
 
-        let script_path = project.root.join(script);
-        let source = match fs::read_to_string(&script_path) {
-            Ok(source) => source,
+        let loaded = match load_project(
+            &project.root,
+            ProjectLoadOptions {
+                entry_override: Some(script.clone()),
+            },
+        ) {
+            Ok(loaded) => loaded,
             Err(error) => {
-                self.status = format!("Failed to read script: {error}");
+                self.status = format!("Failed to start project script: {error:#}");
                 return;
             }
         };
-
-        let mut app = preview_app("Project Preview");
-        let _ = app.register_textures_from_dir(&project.root);
-        if let Err(error) = app.load_script(&source) {
-            self.status = format!("Failed to compile script: {error}");
-            return;
-        }
-        app.advance_until_waiting();
         self.status = format!("Started project script {}.", script.display());
-        self.game = Some(GamePreview::new(app, script.display().to_string()));
+        self.game = Some(GamePreview::new(
+            loaded.app,
+            loaded.entry_path.display().to_string(),
+        ));
+    }
+
+    pub(crate) fn start_project_entry(&mut self) {
+        let path = PathBuf::from(clean_path_input(&self.project_path));
+        let loaded = match load_project(&path, ProjectLoadOptions::default()) {
+            Ok(loaded) => loaded,
+            Err(error) => {
+                self.status = format!("Failed to start project: {error:#}");
+                return;
+            }
+        };
+        self.status = format!("Started project entry {}.", loaded.entry_path.display());
+        self.project_check = Some(ProjectCheck {
+            root: loaded.root.clone(),
+            config_path: loaded.config_path.clone(),
+            entry_path: loaded.entry_path.clone(),
+            registered_assets: loaded.registered_assets,
+            registered_packages: loaded.registered_packages,
+        });
+        self.game = Some(GamePreview::new(
+            loaded.app,
+            loaded.entry_path.display().to_string(),
+        ));
     }
 
     pub(crate) fn start_xp3_script(&mut self) {

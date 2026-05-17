@@ -10,6 +10,7 @@ members = [
     "crates/suzu-input",
     "crates/suzu-platform",
     "crates/suzu-app",
+    "crates/suzu-project",
     "crates/suzu-editor-core",
     "examples/hello-world",
     "examples/branching-story",
@@ -18,6 +19,7 @@ members = [
     "tools/suzu-packer",
     "tools/suzu-compiler",
     "tools/suzu-bench",
+    "tools/suzu-player",
     "tools/suzu-editor",
     "tools/suzu-launcher",
     "tools/suzu-xp3-viewer",
@@ -37,6 +39,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "1"
 tracing = "0.1"
+toml = "1.1"
 mlua = { version = "0.10", features = ["lua54", "vendored"] }
 windows-sys = { version = "0.61.2", features = ["Win32_UI_WindowsAndMessaging"] }
 winresource = "0.1"
@@ -52,4 +55,5 @@ suzu-save = { path = "crates/suzu-save" }
 suzu-input = { path = "crates/suzu-input" }
 suzu-platform = { path = "crates/suzu-platform" }
 suzu-app = { path = "crates/suzu-app" }
+suzu-project = { path = "crates/suzu-project" }
 suzu-editor-core = { path = "crates/suzu-editor-core" }

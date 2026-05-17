@@ -12,3 +12,4 @@ winresource.workspace = true
 anyhow.workspace = true
 eframe.workspace = true
 suzu-editor-core.workspace = true
+suzu-project.workspace = true

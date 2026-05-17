@@ -1,6 +1,6 @@
 # Project Suzu 快速上手
 
-这份文档面向第一次打开 Project Suzu 的开发者，目标是在一个短流程里跑通：安装工具链、运行示例、创建最小项目、编译脚本、打包资源和执行本地自检。更完整的框架说明见 `docs/framework-guide.md`。
+这份文档面向第一次打开 Project Suzu 的开发者，目标是在一个短流程里跑通：安装工具链、运行示例、用零代码工程启动剧情、编译脚本、打包资源和执行本地自检。更完整的框架说明见 `docs/framework-guide.md`。
 
 Project Suzu 目前仍是 `0.1.x` 阶段。它适合原创视觉小说原型、脚本工具链实验、授权资源迁移验证，以及 Rust 应用内嵌视觉小说运行时；它不是完整 KRKR/TJS/KAG 替代品，也不内置商业游戏专用 XP3 处理器。
 
@@ -64,9 +64,34 @@ cargo run -p suzu-short-vn-demo
 
 这些示例默认使用内置脚本和 fallback texture。即使没有外部图片资源，也能看到可运行画面。
 
-## 4. 从最小模板开始
+## 4. 用零代码模板开始
 
-仓库提供了一个可复制的模板：
+如果你只想写脚本和放资源，优先从 KRKR 风格模板开始：
+
+```text
+templates/krkr-like-vn/
+  game.suzu.toml
+  assets/
+  scenario/main.szs
+```
+
+直接运行：
+
+```powershell
+cargo run -p suzu-player -- templates\krkr-like-vn
+```
+
+只做检查、不打开窗口：
+
+```powershell
+cargo run -p suzu-player -- --check templates\krkr-like-vn
+```
+
+这个模板不需要 `src/main.rs`。`game.suzu.toml` 描述标题、入口脚本、窗口和资源目录；`scenario/main.szs` 是默认剧情入口；`assets/` 放图片、音频、字体等资源。目录规范见 `docs/project-layout.md`。
+
+## 5. Rust 集成模板
+
+如果你要把 Suzu 嵌入自己的 Rust 应用，再使用最小 Rust 模板：
 
 ```text
 templates/minimal-vn/
@@ -94,32 +119,30 @@ cargo run --manifest-path templates\minimal-vn\Cargo.toml
 
 模板位于仓库内部，因此默认使用相对路径依赖 `../../crates/suzu-app` 和 `../../crates/suzu-platform`。如果你把模板复制到仓库外，需要把这些依赖改成你自己的本地路径或后续发布的 crate/git 依赖。
 
-## 5. 编写和检查脚本
+## 6. 编写和检查脚本
 
-脚本文件使用 `.szs`。最小结构可以从背景、角色、文本和选择开始：
+脚本文件使用 `.szs`。新项目推荐 `syntax=indent`，最小结构可以从背景、角色、文本和选择开始：
 
 ```text
-@bg file="bg_room" time=500 method=crossfade
-@char name="hero" face="neutral" x=480 y=32 width=320 height=640 layer=10
-@showmsg
-# 铃
-你好，Project Suzu。[l][r]
-@choice "继续" goto=label_continue
+@script version=1 syntax=indent
+bg bg_room
+ch hero neutral
+铃: 你好，Project Suzu。[l][r]
+choice "继续" goto=label_continue
 
-*label_continue
-# 铃
-脚本已经进入下一个标签。[l][r]
+label label_continue:
+铃: 脚本已经进入下一个标签。[l][r]
 ```
 
 编译检查：
 
 ```powershell
-cargo run -p suzu-compiler -- templates\minimal-vn\script\main.szs
+cargo run -p suzu-compiler -- templates\krkr-like-vn\scenario\main.szs
 ```
 
 常用命令、文本 markup、变量和条件语法见 `docs/scripting-reference.md`。
 
-## 6. 打包资源
+## 7. 打包资源
 
 把模板或示例资源导出为 JSON manifest：
 
@@ -135,12 +158,13 @@ cargo run -p suzu-packer -- templates\minimal-vn --pack target\minimal-vn.suzupa
 
 应用侧可以通过 `SuzuApp::register_asset_manifest_file` 或 `SuzuApp::register_package_file` 注册这些产物。完整资源打包说明见 `docs/user-guide.md` 和 `docs/framework-guide.md`。
 
-## 7. 使用 GUI 工具自检
+## 8. 使用 GUI 工具自检
 
 三个 GUI 工具都支持 headless `--check`，不会打开窗口：
 
 ```powershell
 cargo run -p suzu-launcher -- --check
+cargo run -p suzu-player -- --check templates\krkr-like-vn
 cargo run -p suzu-xp3-viewer -- --check
 cargo run -p suzu-editor -- --check
 ```
@@ -148,9 +172,9 @@ cargo run -p suzu-editor -- --check
 也可以指定工程或 XP3 文件：
 
 ```powershell
-cargo run -p suzu-launcher -- --check --project-root templates\minimal-vn
+cargo run -p suzu-launcher -- --check --project-root templates\krkr-like-vn
 cargo run -p suzu-xp3-viewer -- --check --xp3 path\to\plain.xp3
-cargo run -p suzu-editor -- --check --project-root templates\minimal-vn
+cargo run -p suzu-editor -- --check --project-root templates\krkr-like-vn
 ```
 
 外部 XP3 plugin 只适用于你拥有或被授权处理的资源，并且必须显式传入授权确认：
@@ -161,7 +185,7 @@ cargo run -p suzu-xp3-viewer -- --check --xp3 path\to\plain.xp3 --xp3-plugin pat
 
 XP3 支持边界见 `docs/xp3-support.md`，外部处理器接口见 `docs/xp3-plugin-interface.md`，法律和安全说明见 `LEGAL.md`、`SECURITY.md`。
 
-## 8. 打包桌面发布
+## 9. 打包桌面发布
 
 先检查发布输入：
 
@@ -179,7 +203,8 @@ XP3 支持边界见 `docs/xp3-support.md`，外部处理器接口见 `docs/xp3-p
 
 ## 下一步
 
+- 读 `docs/project-layout.md`，了解零代码工程目录、`game.suzu.toml` 和资源 ID 规则。
 - 读 `docs/framework-guide.md`，了解运行时 API、存档、标题界面、菜单和桌面平台层。
 - 读 `docs/scripting-reference.md`，补齐 `.szs` 脚本语法。
 - 读 `docs/api-stability.md`，确认哪些接口在 `0.1.x` 内会尽量保持兼容。
-- 从 `templates/minimal-vn` 复制一个项目，替换脚本和资源，逐步加标题界面、分支、存档和设置。
+- 从 `templates/krkr-like-vn` 复制一个项目，替换脚本和资源；需要 Rust 自定义入口时再参考 `templates/minimal-vn`。

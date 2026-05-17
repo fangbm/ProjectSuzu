@@ -1,21 +1,18 @@
 [package]
-name = "suzu-launcher"
+name = "suzu-project"
 version = "0.1.6"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 
-[build-dependencies]
-winresource.workspace = true
-
 [dependencies]
 anyhow.workspace = true
-eframe.workspace = true
-encoding_rs.workspace = true
+serde.workspace = true
+toml.workspace = true
 suzu-app.workspace = true
 suzu-asset.workspace = true
 suzu-core.workspace = true
-suzu-editor-core.workspace = true
 suzu-platform.workspace = true
-suzu-project.workspace = true
-suzu-script.workspace = true
+
+[dev-dependencies]
+suzu-packer = { path = "../../tools/suzu-packer" }

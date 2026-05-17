@@ -42,6 +42,8 @@ $docFiles = @(
     "docs/implementation-checklist.zh-CN.md",
     "docs/user-guide.md",
     "docs/user-guide.zh-CN.md",
+    "docs/project-layout.md",
+    "docs/project-layout.zh-CN.md",
     "docs/scripting-reference.md",
     "docs/scripting-reference.zh-CN.md",
     "docs/short-vn-demo.md",
@@ -67,6 +69,7 @@ $binaries = @(
     "suzu-compiler",
     "suzu-packer",
     "suzu-bench",
+    "suzu-player",
     "suzu-editor",
     "suzu-launcher",
     "suzu-xp3-viewer",
@@ -79,7 +82,7 @@ $binaries = @(
 Push-Location $repo
 try {
     if ($Check) {
-        foreach ($path in ($rootDocFiles + $brandingFiles + @("templates/minimal-vn", "examples/short-vn-demo", $AssetRoot) + $docFiles)) {
+        foreach ($path in ($rootDocFiles + $brandingFiles + @("templates/minimal-vn", "templates/krkr-like-vn", "examples/short-vn-demo", $AssetRoot) + $docFiles)) {
             if (-not (Test-Path $path)) {
                 throw "Missing package input: $path"
             }
@@ -122,6 +125,7 @@ try {
         Copy-Item $docFile (Join-Path $dist $docFile)
     }
     Copy-Item "templates/minimal-vn" (Join-Path $dist "templates/minimal-vn") -Recurse
+    Copy-Item "templates/krkr-like-vn" (Join-Path $dist "templates/krkr-like-vn") -Recurse
 
     cargo run -p suzu-packer -- $AssetRoot --pack (Join-Path $dist "assets/hello-world.suzupack")
     cargo run -p suzu-packer -- $AssetRoot --output (Join-Path $dist "assets/hello-world-assets.json")

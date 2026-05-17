@@ -23,6 +23,10 @@ pub(super) fn compile_command(
     attributes: &[Attribute],
     extensions: Option<&ExtensionRegistry>,
 ) -> Result<Command, CompileError> {
+    let name = canonical_command_name(name);
+    let attributes = positional_shortcut_attributes(name, args, attributes);
+    let attributes = attributes.as_slice();
+
     match name {
         "bg" => {
             let file = required(name, attributes, "file")?;
@@ -140,6 +144,46 @@ pub(super) fn compile_command(
             suggestion: suggest_command(other).map(ToOwned::to_owned),
         }),
     }
+}
+
+fn canonical_command_name(name: &str) -> &str {
+    match name {
+        "ch" => "char",
+        other => other,
+    }
+}
+
+fn positional_shortcut_attributes(
+    name: &str,
+    args: &[String],
+    attributes: &[Attribute],
+) -> Vec<Attribute> {
+    let mut expanded = attributes.to_vec();
+    match name {
+        "bg" => push_arg_as_attr(&mut expanded, "file", args.first()),
+        "char" => {
+            push_arg_as_attr(&mut expanded, "name", args.first());
+            push_arg_as_attr(&mut expanded, "face", args.get(1));
+        }
+        "voice" | "playvoice" | "playbgm" => {
+            push_arg_as_attr(&mut expanded, "file", args.first());
+        }
+        _ => {}
+    }
+    expanded
+}
+
+fn push_arg_as_attr(attributes: &mut Vec<Attribute>, key: &str, value: Option<&String>) {
+    if attributes.iter().any(|attribute| attribute.key == key) {
+        return;
+    }
+    let Some(value) = value else {
+        return;
+    };
+    attributes.push(Attribute {
+        key: key.to_owned(),
+        value: value.clone(),
+    });
 }
 
 fn compile_position(attributes: &[Attribute]) -> Position {

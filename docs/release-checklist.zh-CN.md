@@ -8,7 +8,7 @@
 - [ ] 确认 crate 版本符合预期。
 - [ ] 确认 `README.md` 和 `README.zh-CN.md` 描述当前功能集。
 - [ ] 确认 `docs/framework-guide.md` 反映当前项目流程。
-- [ ] 确认 `docs/getting-started.md` 和 `templates/minimal-vn` 仍是推荐的新用户入口。
+- [ ] 确认 `docs/getting-started.md`、`docs/project-layout.md` 和 `templates/krkr-like-vn` 仍是推荐的新用户入口。
 - [ ] 确认 `LEGAL.md`、`LEGAL.zh-CN.md`、XP3 支持边界和 XP3 plugin 接口文档都已包含。
 - [ ] 依赖变更后重新生成并检查 `THIRD_PARTY_LICENSES.md`。
 - [ ] 确认 `assets/branding/README.md`、`assets/branding/README.zh-CN.md` 和 `docs/api-stability.md` 是最新状态。
@@ -21,6 +21,7 @@
 - [ ] `cargo doc --workspace --no-deps`
 - [ ] `cargo test -p suzu-script --features lua`
 - [ ] `cargo run -p suzu-launcher -- --check`
+- [ ] `cargo run -p suzu-player -- --check templates\krkr-like-vn`
 - [ ] `cargo run -p suzu-xp3-viewer -- --check`
 - [ ] `cargo run -p suzu-editor -- --check`
 - [ ] `cargo run -p suzu-bench -- 100`

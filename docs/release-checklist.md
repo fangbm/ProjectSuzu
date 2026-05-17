@@ -8,7 +8,7 @@ Use this checklist before creating a `v*` tag or running a manual GitHub release
 - [ ] Confirm crate versions are intentional.
 - [ ] Confirm `README.md` describes the current feature set.
 - [ ] Confirm `docs/framework-guide.md` reflects the current project workflow.
-- [ ] Confirm `docs/getting-started.md` and `templates/minimal-vn` still work as the recommended new-user entry point.
+- [ ] Confirm `docs/getting-started.md`, `docs/project-layout.md`, and `templates/krkr-like-vn` still work as the recommended new-user entry point.
 - [ ] Confirm `LEGAL.md`, XP3 support boundaries, and `docs/xp3-plugin-interface.md` are included.
 - [ ] Regenerate and review `THIRD_PARTY_LICENSES.md` after dependency changes.
 - [ ] Confirm `assets/branding/README.md` and `docs/api-stability.md` are current.
@@ -21,6 +21,7 @@ Use this checklist before creating a `v*` tag or running a manual GitHub release
 - [ ] `cargo doc --workspace --no-deps`
 - [ ] `cargo test -p suzu-script --features lua`
 - [ ] `cargo run -p suzu-launcher -- --check`
+- [ ] `cargo run -p suzu-player -- --check templates\krkr-like-vn`
 - [ ] `cargo run -p suzu-xp3-viewer -- --check`
 - [ ] `cargo run -p suzu-editor -- --check`
 - [ ] `cargo run -p suzu-bench -- 100`

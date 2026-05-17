@@ -14,6 +14,7 @@ fn known_commands() -> &'static [&'static str] {
         "autosave",
         "bg",
         "call",
+        "ch",
         "char",
         "choice",
         "else",

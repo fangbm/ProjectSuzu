@@ -10,6 +10,7 @@ Project Suzu is a Rust visual novel framework based on the project plan in `docs
 
 The current repository includes a complete first framework slice with typed module boundaries for:
 
+- zero-code project loading through `suzu-player`, `game.suzu.toml`, and KRKR-like folder conventions
 - core math and error types
 - script AST, parser, and command queue
 - retained-mode render layer descriptions and layer stack utilities
@@ -47,6 +48,8 @@ cargo run -p suzu-hello-world
 cargo run -p suzu-branching-story
 cargo run -p suzu-ui-save-load-demo
 cargo run -p suzu-short-vn-demo
+cargo run -p suzu-player -- templates\krkr-like-vn
+cargo run -p suzu-player -- --check templates\krkr-like-vn
 cargo run -p suzu-editor
 start examples\web-browser-shell\index.html
 cargo run -p suzu-bench -- 1000
@@ -63,4 +66,4 @@ On Windows, the desktop example binaries use the GUI subsystem, so launching the
 
 `suzu-packer` emits a JSON asset manifest that can be registered through `AssetManager::register_manifest_file` or `SuzuApp::register_asset_manifest_file`, and can also write `.suzupack` archives with RLE compression, packed offsets, and checksum metadata. The asset manager supports synchronous texture loads, background texture loads, optional LRU texture caching, and package archive reads. `GameConfig` and `UserSettings` can be read from or written to JSON files for project and user preference persistence.
 Script compile errors include line/column diagnostics, and unknown commands suggest the closest built-in command when possible. Scripts may declare `@script version=1`; the compiler validates the format version and exposes a migration entry point for future DSL upgrades.
-User-facing documentation lives in `docs/getting-started.md`, `docs/framework-guide.md`, `docs/user-guide.md`, `docs/scripting-reference.md`, `docs/short-vn-demo.md`, `docs/xp3-support.md`, `docs/xp3-plugin-interface.md`, `docs/release-packaging.md`, `docs/developer-checks.md`, `docs/release-checklist.md`, and `docs/api-stability.md`. Simplified Chinese entries are available as `*.zh-CN.md` companions where the primary document is English; several planning and getting-started documents are already maintained directly in Chinese and also have `zh-CN` entry files. The minimal project template is in `templates/minimal-vn`, and the first short VN proof is `examples/short-vn-demo`. The visual script editor plan is tracked in `docs/visual-script-editor-development-plan.md`, and the first editor MVP can be launched with `cargo run -p suzu-editor`. Contribution, security, and legal notes live in `CONTRIBUTING.md`, `SECURITY.md`, and `LEGAL.md`, with Chinese companions beside them. Project changes are summarized in `CHANGELOG.md`; licensing is `MIT OR Apache-2.0`, with dependency notices in `THIRD_PARTY_LICENSES.md` and a Chinese reading note in `THIRD_PARTY_LICENSES.zh-CN.md`.
+User-facing documentation lives in `docs/getting-started.md`, `docs/framework-guide.md`, `docs/user-guide.md`, `docs/project-layout.md`, `docs/scripting-reference.md`, `docs/short-vn-demo.md`, `docs/xp3-support.md`, `docs/xp3-plugin-interface.md`, `docs/release-packaging.md`, `docs/developer-checks.md`, `docs/release-checklist.md`, and `docs/api-stability.md`. Simplified Chinese entries are available as `*.zh-CN.md` companions where the primary document is English; several planning and getting-started documents are already maintained directly in Chinese and also have `zh-CN` entry files. The low-friction project template is in `templates/krkr-like-vn`, the Rust integration template is in `templates/minimal-vn`, and the first short VN proof is `examples/short-vn-demo`. The visual script editor plan is tracked in `docs/visual-script-editor-development-plan.md`, and the first editor MVP can be launched with `cargo run -p suzu-editor`. Contribution, security, and legal notes live in `CONTRIBUTING.md`, `SECURITY.md`, and `LEGAL.md`, with Chinese companions beside them. Project changes are summarized in `CHANGELOG.md`; licensing is `MIT OR Apache-2.0`, with dependency notices in `THIRD_PARTY_LICENSES.md` and a Chinese reading note in `THIRD_PARTY_LICENSES.zh-CN.md`.

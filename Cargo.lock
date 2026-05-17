@@ -3714,6 +3714,7 @@ dependencies = [
  "anyhow",
  "eframe",
  "suzu-editor-core",
+ "suzu-project",
  "winresource",
 ]
 
@@ -3760,6 +3761,7 @@ dependencies = [
  "suzu-core",
  "suzu-editor-core",
  "suzu-platform",
+ "suzu-project",
  "suzu-script",
  "winresource",
 ]
@@ -3785,6 +3787,31 @@ dependencies = [
  "suzu-core",
  "wgpu 24.0.5",
  "winit 0.30.13",
+]
+
+[[package]]
+name = "suzu-player"
+version = "0.1.6"
+dependencies = [
+ "anyhow",
+ "suzu-platform",
+ "suzu-project",
+ "windows-sys 0.61.2",
+ "winresource",
+]
+
+[[package]]
+name = "suzu-project"
+version = "0.1.6"
+dependencies = [
+ "anyhow",
+ "serde",
+ "suzu-app",
+ "suzu-asset",
+ "suzu-core",
+ "suzu-packer",
+ "suzu-platform",
+ "toml",
 ]
 
 [[package]]

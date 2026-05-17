@@ -21,6 +21,7 @@ jobs:
       - run: cargo doc --workspace --no-deps
       - run: cargo test -p suzu-script --features lua
       - run: cargo run -p suzu-launcher -- --check
+      - run: cargo run -p suzu-player -- --check templates/krkr-like-vn
       - run: cargo run -p suzu-xp3-viewer -- --check
       - run: cargo run -p suzu-editor -- --check
       - shell: pwsh
@@ -60,6 +61,7 @@ jobs:
           Copy-Item "target/release/suzu-compiler${{ matrix.exe }}" "dist/suzu-compiler${{ matrix.exe }}"
           Copy-Item "target/release/suzu-packer${{ matrix.exe }}" "dist/suzu-packer${{ matrix.exe }}"
           Copy-Item "target/release/suzu-bench${{ matrix.exe }}" "dist/suzu-bench${{ matrix.exe }}"
+          Copy-Item "target/release/suzu-player${{ matrix.exe }}" "dist/suzu-player${{ matrix.exe }}"
           Copy-Item "target/release/suzu-editor${{ matrix.exe }}" "dist/suzu-editor${{ matrix.exe }}"
           Copy-Item "target/release/suzu-launcher${{ matrix.exe }}" "dist/suzu-launcher${{ matrix.exe }}"
           Copy-Item "target/release/suzu-xp3-viewer${{ matrix.exe }}" "dist/suzu-xp3-viewer${{ matrix.exe }}"
@@ -97,6 +99,8 @@ jobs:
             "docs/implementation-checklist.zh-CN.md",
             "docs/user-guide.md",
             "docs/user-guide.zh-CN.md",
+            "docs/project-layout.md",
+            "docs/project-layout.zh-CN.md",
             "docs/scripting-reference.md",
             "docs/scripting-reference.zh-CN.md",
             "docs/short-vn-demo.md",
@@ -128,6 +132,7 @@ jobs:
             Copy-Item $docFile "dist/$docFile"
           }
           Copy-Item templates/minimal-vn dist/templates/minimal-vn -Recurse
+          Copy-Item templates/krkr-like-vn dist/templates/krkr-like-vn -Recurse
           foreach ($required in @(
             "THIRD_PARTY_LICENSES.md",
             "THIRD_PARTY_LICENSES.zh-CN.md",
@@ -141,6 +146,8 @@ jobs:
             "docs/framework-guide.zh-CN.md",
             "docs/getting-started.md",
             "docs/getting-started.zh-CN.md",
+            "docs/project-layout.md",
+            "docs/project-layout.zh-CN.md",
             "docs/short-vn-demo.md",
             "docs/short-vn-demo.zh-CN.md",
             "docs/xp3-support.md",
@@ -150,7 +157,9 @@ jobs:
             "docs/api-stability.md",
             "docs/api-stability.zh-CN.md",
             "templates/minimal-vn/README.md",
-            "templates/minimal-vn/README.zh-CN.md"
+            "templates/minimal-vn/README.zh-CN.md",
+            "templates/krkr-like-vn/README.md",
+            "templates/krkr-like-vn/README.zh-CN.md"
           )) {
             if (-not (Test-Path "dist/$required")) {
               throw "Missing release package file: $required"
