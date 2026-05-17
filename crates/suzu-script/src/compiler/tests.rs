@@ -355,6 +355,118 @@ fn compiles_if_else_block() {
 }
 
 #[test]
+fn compiles_indent_syntax_script() {
+    let commands = compile_script(
+        r#"@script version=1 syntax=indent
+bg file="school" method=crossfade time=500
+Suzu: Hello from indentation.
+choice "Library" goto=library
+label library:
+if cond=flag:
+    Suzu: The route is open.
+else:
+    Suzu: The route is closed.
+"#,
+    )
+    .unwrap();
+
+    assert!(matches!(&commands[0], Command::Bg { file, .. } if file == "school"));
+    assert!(matches!(
+        &commands[1],
+        Command::Text {
+            speaker: Some(speaker),
+            content
+        } if speaker == "Suzu" && content == "Hello from indentation."
+    ));
+    assert!(matches!(&commands[2], Command::Choice { options } if options[0].goto == "library"));
+    assert!(matches!(
+        &commands[4],
+        Command::If {
+            then_commands,
+            else_commands,
+            ..
+        } if matches!(&then_commands[0], Command::Text { content, .. } if content == "The route is open.")
+            && matches!(&else_commands[0], Command::Text { content, .. } if content == "The route is closed.")
+    ));
+}
+
+#[test]
+fn compiles_braces_syntax_script() {
+    let commands = compile_script(
+        r#"@script version=1 syntax=braces
+bg(file="school", method=crossfade, time=500);
+Suzu: Hello from braces;
+choice("Library", goto=library);
+label("library");
+if(cond=flag) {
+    Suzu: The route is open;
+} else {
+    Suzu: The route is closed;
+}
+"#,
+    )
+    .unwrap();
+
+    assert!(matches!(&commands[0], Command::Bg { file, .. } if file == "school"));
+    assert!(matches!(
+        &commands[1],
+        Command::Text {
+            speaker: Some(speaker),
+            content
+        } if speaker == "Suzu" && content == "Hello from braces"
+    ));
+    assert!(matches!(&commands[2], Command::Choice { options } if options[0].goto == "library"));
+    assert!(matches!(
+        &commands[4],
+        Command::If {
+            then_commands,
+            else_commands,
+            ..
+        } if matches!(&then_commands[0], Command::Text { content, .. } if content == "The route is open")
+            && matches!(&else_commands[0], Command::Text { content, .. } if content == "The route is closed")
+    ));
+}
+
+#[test]
+fn compiles_markup_syntax_script() {
+    let commands = compile_script(
+        r#"@script version=1 syntax=markup
+<scene>
+  <bg file="school" method="crossfade" time="500" />
+  <say speaker="Suzu">Hello from markup.</say>
+  <choice text="Library" goto="library" />
+  <label name="library" />
+  <if cond="flag">
+    <say speaker="Suzu">The route is open.</say>
+    <else />
+    <say speaker="Suzu">The route is closed.</say>
+  </if>
+</scene>
+"#,
+    )
+    .unwrap();
+
+    assert!(matches!(&commands[0], Command::Bg { file, .. } if file == "school"));
+    assert!(matches!(
+        &commands[1],
+        Command::Text {
+            speaker: Some(speaker),
+            content
+        } if speaker == "Suzu" && content == "Hello from markup."
+    ));
+    assert!(matches!(&commands[2], Command::Choice { options } if options[0].goto == "library"));
+    assert!(matches!(
+        &commands[4],
+        Command::If {
+            then_commands,
+            else_commands,
+            ..
+        } if matches!(&then_commands[0], Command::Text { content, .. } if content == "The route is open.")
+            && matches!(&else_commands[0], Command::Text { content, .. } if content == "The route is closed.")
+    ));
+}
+
+#[test]
 fn compiles_quoted_values_with_spaces() {
     let commands = compile_script(
         "@savename text=\"Chapter 1 - The First Bell\"\n@choice \"Go home\" goto=home",

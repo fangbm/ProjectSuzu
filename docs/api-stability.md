@@ -6,7 +6,8 @@ Project Suzu is pre-1.0. Public APIs are kept steady when practical, but crates 
 
 - `suzu-app::SuzuApp`, `TitleMenuAction`, and `SystemMenuAction` are the primary runtime facade types.
 - Existing public `SuzuApp` methods should not be renamed or removed during the `0.1.x` line without a changelog note.
-- Script format `@script version=1` remains the current stable script dialect.
+- Script format `@script version=1` remains the current stable script format. The classic syntax remains the default when no `syntax` field is present.
+- Script syntax front ends `syntax=classic`, `syntax=indent`, `syntax=braces`, and `syntax=markup` compile into the same command model. In `0.1.x`, non-classic styles are newer and may receive additive parsing improvements, but existing documented examples should keep compiling unless a changelog calls out a break.
 - `.suzupack` format version `1` remains readable by the asset crate.
 - GUI `--check` interfaces are intended for CI smoke usage and should remain scriptable.
 

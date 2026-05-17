@@ -1,6 +1,6 @@
 # Project Suzu Scripting Reference
 
-Project Suzu scripts use `.szs` files. Lines beginning with `#` set the current speaker, labels begin with `*`, and commands begin with `@`.
+Project Suzu scripts use `.szs` files. The default syntax is the classic line-oriented Project Suzu style: lines beginning with `#` set the current speaker, labels begin with `*`, and commands begin with `@`.
 
 ## Metadata
 
@@ -8,7 +8,74 @@ Project Suzu scripts use `.szs` files. Lines beginning with `#` set the current 
 @script version=1
 ```
 
-The current script format version is `1`.
+The current script format version is `1`. Scripts may also specify a surface syntax:
+
+```text
+@script version=1 syntax=classic
+@script version=1 syntax=indent
+@script version=1 syntax=braces
+@script version=1 syntax=markup
+```
+
+If `syntax` is omitted, Project Suzu uses `classic`. All styles compile into the same command model, so runtime behavior, saves, packaging, and asset loading stay shared.
+
+## Syntax Styles
+
+Classic style is the original `.szs` form:
+
+```text
+@script version=1 syntax=classic
+@bg file="school" method=crossfade time=500
+# Suzu
+Hello.[l][r]
+@choice "Library" goto=library
+*library
+# Suzu
+This is the same runtime route.
+```
+
+Indent style is friendlier for authors who prefer Python-like blocks:
+
+```text
+@script version=1 syntax=indent
+bg file="school" method=crossfade time=500
+Suzu: Hello.[l][r]
+choice "Library" goto=library
+label library:
+if cond=flag:
+    Suzu: The route is open.
+else:
+    Suzu: The route is closed.
+```
+
+Brace style is useful for programmers and code generators:
+
+```text
+script(version=1, syntax=braces);
+bg(file="school", method=crossfade, time=500);
+Suzu: Hello from braces;
+choice("Library", goto=library);
+label("library");
+if(cond=flag) {
+    Suzu: The route is open;
+} else {
+    Suzu: The route is closed;
+}
+```
+
+Markup style is useful for editor export and tag-oriented workflows:
+
+```html
+<script version="1" syntax="markup" />
+<scene>
+  <bg file="school" method="crossfade" time="500" />
+  <say speaker="Suzu">Hello from markup.</say>
+  <choice text="Library" goto="library" />
+  <label name="library" />
+</scene>
+```
+
+The non-classic styles are parser front ends. They are intended for core VN flow commands first; custom or unusual commands can still use classic `@command` lines inside indent and markup documents.
 
 ## Dialogue
 
