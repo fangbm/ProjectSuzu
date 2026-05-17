@@ -40,6 +40,10 @@ pub struct TitleScreenConfig {
     pub enabled: bool,
     pub title: String,
     pub subtitle: String,
+    #[serde(default)]
+    pub background_texture: Option<String>,
+    #[serde(default)]
+    pub labels: TitleScreenLabels,
 }
 
 impl Default for TitleScreenConfig {
@@ -48,6 +52,41 @@ impl Default for TitleScreenConfig {
             enabled: false,
             title: "Project Suzu".to_owned(),
             subtitle: "Galgame Engine".to_owned(),
+            background_texture: None,
+            labels: TitleScreenLabels::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TitleScreenLabels {
+    pub menu_heading: String,
+    pub load_heading: String,
+    pub settings_heading: String,
+    pub start: String,
+    pub continue_game: String,
+    pub load: String,
+    pub settings: String,
+    pub quit: String,
+    pub back: String,
+    pub autosave: String,
+    pub empty_slot: String,
+}
+
+impl Default for TitleScreenLabels {
+    fn default() -> Self {
+        Self {
+            menu_heading: "Title".to_owned(),
+            load_heading: "Load Game".to_owned(),
+            settings_heading: "Settings".to_owned(),
+            start: "Start".to_owned(),
+            continue_game: "Continue".to_owned(),
+            load: "Load".to_owned(),
+            settings: "Settings".to_owned(),
+            quit: "Quit".to_owned(),
+            back: "Back".to_owned(),
+            autosave: "Autosave".to_owned(),
+            empty_slot: "Empty".to_owned(),
         }
     }
 }
@@ -166,6 +205,8 @@ mod tests {
                 enabled: true,
                 title: "Test Title".to_owned(),
                 subtitle: "Subtitle".to_owned(),
+                background_texture: Some("title_bg".to_owned()),
+                labels: TitleScreenLabels::default(),
             },
         };
 

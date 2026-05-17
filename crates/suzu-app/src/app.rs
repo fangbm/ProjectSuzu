@@ -59,6 +59,16 @@ const TITLE_MENU_ACTIONS: [TitleMenuAction; 5] = [
     TitleMenuAction::Settings,
     TitleMenuAction::Quit,
 ];
+const TITLE_LOAD_SLOT_COUNT: usize = 5;
+const TITLE_LOAD_ENTRY_COUNT: usize = TITLE_LOAD_SLOT_COUNT + 2;
+const TITLE_SETTINGS_ENTRY_COUNT: usize = 4;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TitleScreenMode {
+    Main,
+    Load,
+    Settings,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TitleMenuAction {
@@ -70,13 +80,13 @@ pub enum TitleMenuAction {
 }
 
 impl TitleMenuAction {
-    fn label(self) -> &'static str {
+    fn label(self, labels: &crate::config::TitleScreenLabels) -> &str {
         match self {
-            Self::Start => "Start",
-            Self::Continue => "Continue",
-            Self::Load => "Load",
-            Self::Settings => "Settings",
-            Self::Quit => "Quit",
+            Self::Start => &labels.start,
+            Self::Continue => &labels.continue_game,
+            Self::Load => &labels.load,
+            Self::Settings => &labels.settings,
+            Self::Quit => &labels.quit,
         }
     }
 }
@@ -131,7 +141,9 @@ pub struct SuzuApp {
     history_visible: bool,
     history_scroll: usize,
     title_screen_visible: bool,
+    title_screen_mode: TitleScreenMode,
     title_menu_selected: usize,
+    title_submenu_selected: usize,
     system_menu_visible: bool,
     system_menu_selected: usize,
     quit_requested: bool,
@@ -167,7 +179,9 @@ impl SuzuApp {
             history_visible: false,
             history_scroll: 0,
             title_screen_visible,
+            title_screen_mode: TitleScreenMode::Main,
             title_menu_selected: 0,
+            title_submenu_selected: 0,
             system_menu_visible: false,
             system_menu_selected: 0,
             quit_requested: false,

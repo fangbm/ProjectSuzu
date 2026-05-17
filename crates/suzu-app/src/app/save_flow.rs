@@ -84,7 +84,9 @@ impl SuzuApp {
         self.history_visible = false;
         self.history_scroll = 0;
         self.title_screen_visible = false;
+        self.title_screen_mode = TitleScreenMode::Main;
         self.title_menu_selected = 0;
+        self.title_submenu_selected = 0;
         self.system_menu_visible = false;
         self.system_menu_selected = 0;
         self.auto_advance_elapsed_ms = 0;

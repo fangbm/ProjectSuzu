@@ -28,6 +28,7 @@ pub fn preview_app(subtitle: &str) -> SuzuApp {
             enabled: false,
             title: "Project Suzu".to_owned(),
             subtitle: subtitle.to_owned(),
+            ..TitleScreenConfig::default()
         },
         ..GameConfig::default()
     })

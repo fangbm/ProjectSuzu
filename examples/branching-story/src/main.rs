@@ -26,6 +26,7 @@ fn example_config() -> GameConfig {
             enabled: true,
             title: "Project Suzu".to_owned(),
             subtitle: "Branching Story".to_owned(),
+            ..TitleScreenConfig::default()
         },
         ..GameConfig::default()
     }

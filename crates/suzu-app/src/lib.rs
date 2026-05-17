@@ -5,6 +5,6 @@ pub mod scene;
 pub use app::{SuzuApp, SystemMenuAction, TitleMenuAction};
 pub use config::{
     default_user_settings_path, AudioSettings, GameConfig, TextSettings, TitleScreenConfig,
-    UserSettings, WindowSettings,
+    TitleScreenLabels, UserSettings, WindowSettings,
 };
 pub use scene::Scene;

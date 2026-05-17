@@ -6,6 +6,7 @@ pub enum InputEvent {
     Confirm,
     Cancel,
     MoveSelection { delta: i32 },
+    PointerMove { position: Vec2 },
     PointerDown { position: Vec2 },
     PointerUp { position: Vec2 },
     TouchStart { id: u64, position: Vec2 },

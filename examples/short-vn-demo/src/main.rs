@@ -38,6 +38,8 @@ fn demo_config() -> GameConfig {
             enabled: true,
             title: "Project Suzu".to_owned(),
             subtitle: "Short VN Demo".to_owned(),
+            background_texture: Some("bg_station_morning".to_owned()),
+            ..TitleScreenConfig::default()
         },
         ..GameConfig::default()
     }

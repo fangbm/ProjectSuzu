@@ -277,6 +277,7 @@ impl Xp3ViewerApp {
                 enabled: false,
                 title: "Project Suzu".to_owned(),
                 subtitle: "XP3 Preview".to_owned(),
+                ..TitleScreenConfig::default()
             },
             ..GameConfig::default()
         });

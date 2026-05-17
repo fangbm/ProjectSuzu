@@ -153,6 +153,8 @@ fn game_config() -> GameConfig {
             enabled: true,
             title: "My Novel".to_owned(),
             subtitle: "Project Suzu".to_owned(),
+            background_texture: Some("title_bg".to_owned()),
+            ..TitleScreenConfig::default()
         },
         ..GameConfig::default()
     }
@@ -201,6 +203,8 @@ GameConfig {
         enabled: true,
         title: "My Novel".to_owned(),
         subtitle: "Chapter 1".to_owned(),
+        background_texture: Some("title_bg".to_owned()),
+        ..TitleScreenConfig::default()
     },
     ..GameConfig::default()
 }
@@ -210,11 +214,11 @@ GameConfig {
 
 - Start：从脚本开头开始。
 - Continue：优先恢复 autosave，其次恢复 slot 0。
-- Load：恢复 slot 0。
-- Settings：进入设置入口。
+- Load：进入读档页，可选择 autosave 或前 5 个 slot。
+- Settings：进入标题设置页，可调整文本速度、自动播放延迟和主音量。
 - Quit：请求退出。
 
-运行时系统菜单还支持返回标题。标题界面适合示例和普通桌面游戏；如果你想自己实现 launcher 或主菜单，可以保持 `title_screen.enabled = false`。
+标题界面支持 `background_texture`，值是已经注册到 `scene_textures` 的纹理 id；如果没有设置，运行时使用内置深色背景。菜单文案可通过 `TitleScreenConfig::labels` 覆盖，适合本地化项目。运行时系统菜单还支持返回标题。标题界面适合示例和普通桌面游戏；如果你想自己实现 launcher 或主菜单，可以保持 `title_screen.enabled = false`。
 
 ## 编写脚本
 

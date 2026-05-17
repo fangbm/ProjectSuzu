@@ -110,7 +110,7 @@ app.register_xp3_file_with_options("data.xp3", module.xp3_options())?;
 
 ## 标题界面
 
-设置 `GameConfig.title_screen.enabled = true` 后，运行时会从标题菜单开始，而不是立刻推进脚本。内置标题菜单支持 Start、Continue、Load、Settings 和 Quit。Start 会重置运行时并推进脚本到第一个等待点；Continue 会优先恢复 autosave 或 slot 0；Load 恢复 slot 0；系统菜单中的 Return Title 会重置运行时并重新显示标题界面。
+设置 `GameConfig.title_screen.enabled = true` 后，运行时会从标题菜单开始，而不是立刻推进脚本。内置标题菜单支持 Start、Continue、Load、Settings 和 Quit。Start 会重置运行时并推进脚本到第一个等待点；Continue 会优先恢复 autosave 或 slot 0；Load 会打开读档页，可选择 autosave 和前 5 个 slot；Settings 会打开标题设置页，可调整文本速度、自动播放延迟和主音量。`TitleScreenConfig.background_texture` 可以指向已注册的 texture id，用作游戏标题背景；`TitleScreenConfig.labels` 可以覆盖菜单文本，便于本地化。系统菜单中的 Return Title 会重置运行时并重新显示标题界面。
 
 ## 示例
 

@@ -7,6 +7,7 @@
 - 更新脚本参考，让 `@anim` 和 `@fx` 示例匹配当前属性名。
 - 增加 `syntax=indent`、`syntax=braces`、`syntax=markup` parser front end，并保持现有 classic `.szs` 语法为默认。
 - 为仓库文档、模板、示例和 release package 增加简体中文配套文档。
+- 改进内置标题界面，支持可配置背景纹理、本地化菜单文本、读档/设置子页和鼠标命中。
 
 ## 0.1.6 - 2026-05-15
 

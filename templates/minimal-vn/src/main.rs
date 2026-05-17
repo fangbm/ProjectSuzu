@@ -29,6 +29,8 @@ fn template_config() -> GameConfig {
             enabled: true,
             title: "Project Suzu".to_owned(),
             subtitle: "Minimal VN Template".to_owned(),
+            background_texture: Some("bg_room".to_owned()),
+            ..TitleScreenConfig::default()
         },
         ..GameConfig::default()
     }

@@ -110,7 +110,7 @@ For manual testing, run `suzu-xp3-viewer` with an XP3 path. It lists indexed ent
 
 ## Title Screen
 
-Set `GameConfig.title_screen.enabled = true` to start on a title menu instead of immediately advancing the script. The built-in title menu supports Start, Continue, Load, Settings, and Quit. Start resets the runtime and advances the script to the first waiting point; Continue restores the autosave or slot 0 when available; Load restores slot 0; Return Title in the system menu resets the runtime and shows the title screen again.
+Set `GameConfig.title_screen.enabled = true` to start on a title menu instead of immediately advancing the script. The built-in title menu supports Start, Continue, Load, Settings, and Quit. Start resets the runtime and advances the script to the first waiting point; Continue restores the autosave or slot 0 when available; Load opens a small load page for autosave plus the first five slots; Settings opens a title settings page for text speed, auto-advance delay, and master volume. `TitleScreenConfig.background_texture` can point at a registered texture id for a branded title background, and `TitleScreenConfig.labels` can override menu text. Return Title in the system menu resets the runtime and shows the title screen again.
 
 ## Examples
 

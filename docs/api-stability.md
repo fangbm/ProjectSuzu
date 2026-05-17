@@ -10,6 +10,7 @@ Project Suzu is pre-1.0. Public APIs are kept steady when practical, but crates 
 - Script syntax front ends `syntax=classic`, `syntax=indent`, `syntax=braces`, and `syntax=markup` compile into the same command model. In `0.1.x`, non-classic styles are newer and may receive additive parsing improvements, but existing documented examples should keep compiling unless a changelog calls out a break.
 - `.suzupack` format version `1` remains readable by the asset crate.
 - GUI `--check` interfaces are intended for CI smoke usage and should remain scriptable.
+- `TitleScreenConfig` additive fields such as labels and background texture are intended to stay backward-compatible through serde defaults.
 
 ## Experimental Areas
 

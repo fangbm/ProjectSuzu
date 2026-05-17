@@ -1,9 +1,10 @@
 use std::{sync::Arc, time::Instant};
 
 use anyhow::{Context, Result};
+use suzu_core::Vec2;
 use winit::{
     application::ApplicationHandler,
-    event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent},
+    event::{ElementState, MouseButton, MouseScrollDelta, TouchPhase, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop},
     keyboard::{Key, NamedKey},
     window::{Window, WindowId},
@@ -34,6 +35,7 @@ struct DesktopRunner<A> {
     window: Option<Arc<Window>>,
     renderer: Option<GpuClearRenderer>,
     last_frame_at: Option<Instant>,
+    cursor_position: Option<Vec2>,
 }
 
 impl<A> DesktopRunner<A> {
@@ -44,6 +46,7 @@ impl<A> DesktopRunner<A> {
             window: None,
             renderer: None,
             last_frame_at: None,
+            cursor_position: None,
         }
     }
 }
@@ -91,6 +94,12 @@ where
                 }
                 window.request_redraw();
             }
+            WindowEvent::CursorMoved { position, .. } => {
+                let position = Vec2::new(position.x as f32, position.y as f32);
+                self.cursor_position = Some(position);
+                self.app.input(DesktopInputEvent::PointerMove { position });
+                window.request_redraw();
+            }
             WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => {
                 match event.logical_key {
                     Key::Named(NamedKey::Enter | NamedKey::Space) => {
@@ -119,7 +128,17 @@ where
                 button: MouseButton::Left,
                 ..
             } => {
-                self.app.input(DesktopInputEvent::Confirm);
+                if let Some(position) = self.cursor_position {
+                    self.app.input(DesktopInputEvent::PointerDown { position });
+                } else {
+                    self.app.input(DesktopInputEvent::Confirm);
+                }
+                window.request_redraw();
+            }
+            WindowEvent::Touch(touch) if touch.phase == TouchPhase::Started => {
+                self.app.input(DesktopInputEvent::PointerDown {
+                    position: Vec2::new(touch.location.x as f32, touch.location.y as f32),
+                });
                 window.request_redraw();
             }
             WindowEvent::MouseWheel { delta, .. } => {

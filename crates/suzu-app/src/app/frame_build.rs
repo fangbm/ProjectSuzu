@@ -8,6 +8,12 @@ impl DesktopApp for SuzuApp {
             DesktopInputEvent::MoveSelection { delta } => {
                 self.handle_input_event(InputEvent::MoveSelection { delta })
             }
+            DesktopInputEvent::PointerMove { position } => {
+                self.handle_input_event(InputEvent::PointerMove { position })
+            }
+            DesktopInputEvent::PointerDown { position } => {
+                self.handle_input_event(InputEvent::PointerDown { position })
+            }
             DesktopInputEvent::Scroll { delta } => {
                 self.handle_input_event(InputEvent::Scroll { delta })
             }
@@ -18,9 +24,12 @@ impl DesktopApp for SuzuApp {
         self.tick(delta_ms);
         if self.title_screen_visible {
             return title_frame(
-                &self.config.title_screen.title,
-                &self.config.title_screen.subtitle,
+                &self.config.title_screen,
+                self.title_screen_mode,
                 self.title_menu_selected,
+                self.title_submenu_selected,
+                &self.saves,
+                &self.settings,
                 &self.scene_textures,
             );
         }
@@ -192,23 +201,43 @@ fn frame_blend_mode(blend_mode: BlendMode) -> FrameBlendMode {
 }
 
 fn title_frame(
-    title: &str,
-    subtitle: &str,
+    config: &crate::config::TitleScreenConfig,
+    mode: TitleScreenMode,
     selected: usize,
+    submenu_selected: usize,
+    saves: &SaveManager,
+    settings: &UserSettings,
     textures: &[FrameTexture],
 ) -> DesktopFrame {
-    let mut sprites = vec![
-        FrameSprite::solid(
+    let mut sprites = Vec::new();
+    if let Some(background_texture) = &config.background_texture {
+        sprites.push(FrameSprite::solid(
+            background_texture.clone(),
+            Rect::new(0.0, 0.0, 1280.0, 720.0),
+            Color::WHITE,
+            0,
+        ));
+        sprites.push(FrameSprite::solid(
+            "title_background_tint",
+            Rect::new(0.0, 0.0, 1280.0, 720.0),
+            Color::rgba(0.0, 0.0, 0.0, 0.36),
+            1,
+        ));
+    } else {
+        sprites.push(FrameSprite::solid(
             "title_background",
             Rect::new(0.0, 0.0, 1280.0, 720.0),
             Color::rgba(0.035, 0.04, 0.055, 1.0),
             0,
-        ),
+        ));
+    }
+
+    sprites.extend([
         FrameSprite::solid(
-            "title_panel",
-            Rect::new(720.0, 126.0, 368.0, 424.0),
-            Color::rgba(0.02, 0.024, 0.034, 0.92),
-            10,
+            "title_glow",
+            Rect::new(72.0, 80.0, 560.0, 400.0),
+            Color::rgba(0.11, 0.13, 0.18, 0.72),
+            2,
         ),
         FrameSprite::solid(
             "title_accent",
@@ -217,40 +246,70 @@ fn title_frame(
             11,
         ),
         FrameSprite::solid(
-            "title_menu_selection",
-            Rect::new(752.0, 252.0 + selected as f32 * 58.0, 304.0, 42.0),
-            Color::rgba(0.18, 0.24, 0.34, 0.95),
-            12,
+            "title_panel",
+            Rect::new(720.0, 126.0, 368.0, 424.0),
+            Color::rgba(0.02, 0.024, 0.034, 0.92),
+            10,
         ),
-    ];
+    ]);
 
+    let selection = match mode {
+        TitleScreenMode::Main => selected,
+        TitleScreenMode::Load | TitleScreenMode::Settings => submenu_selected,
+    };
     sprites.push(FrameSprite::solid(
-        "title_glow",
-        Rect::new(72.0, 80.0, 560.0, 400.0),
-        Color::rgba(0.11, 0.13, 0.18, 0.72),
-        1,
+        "title_menu_selection",
+        title_menu_item_bounds(selection),
+        Color::rgba(0.18, 0.24, 0.34, 0.95),
+        12,
     ));
 
     let mut texts = vec![
         FrameText::new(
-            title.to_owned(),
+            config.title.clone(),
             Rect::new(96.0, 164.0, 560.0, 80.0),
             Color::rgba(0.96, 0.9, 0.78, 1.0),
             100,
         ),
         FrameText::new(
-            subtitle.to_owned(),
+            config.subtitle.clone(),
             Rect::new(100.0, 252.0, 500.0, 36.0),
             Color::rgba(0.76, 0.8, 0.88, 1.0),
             101,
         ),
-        FrameText::new(
-            "Title".to_owned(),
-            Rect::new(752.0, 158.0, 304.0, 42.0),
-            Color::rgba(0.88, 0.9, 0.96, 1.0),
-            102,
-        ),
     ];
+
+    match mode {
+        TitleScreenMode::Main => push_title_main_texts(&mut texts, config, selected),
+        TitleScreenMode::Load => push_title_load_texts(&mut texts, config, saves, submenu_selected),
+        TitleScreenMode::Settings => {
+            push_title_settings_texts(&mut texts, config, settings, submenu_selected);
+        }
+    }
+
+    DesktopFrame {
+        clear_color: Color::rgba(0.035, 0.04, 0.055, 1.0),
+        textures: textures.to_vec(),
+        sprites,
+        texts,
+    }
+}
+
+fn title_menu_item_bounds(index: usize) -> Rect {
+    Rect::new(752.0, 252.0 + index as f32 * 58.0, 304.0, 42.0)
+}
+
+fn push_title_main_texts(
+    texts: &mut Vec<FrameText>,
+    config: &crate::config::TitleScreenConfig,
+    selected: usize,
+) {
+    texts.push(FrameText::new(
+        config.labels.menu_heading.clone(),
+        Rect::new(752.0, 158.0, 304.0, 42.0),
+        Color::rgba(0.88, 0.9, 0.96, 1.0),
+        102,
+    ));
 
     for (index, action) in TITLE_MENU_ACTIONS.iter().enumerate() {
         let marker = if index == selected { "> " } else { "  " };
@@ -260,18 +319,126 @@ fn title_frame(
             Color::rgba(0.76, 0.8, 0.88, 1.0)
         };
         texts.push(FrameText::new(
-            format!("{marker}{}", action.label()),
+            format!("{marker}{}", action.label(&config.labels)),
             Rect::new(776.0, 260.0 + index as f32 * 58.0, 256.0, 30.0),
             color,
             110 + index as i32,
         ));
     }
+}
 
-    DesktopFrame {
-        clear_color: Color::rgba(0.035, 0.04, 0.055, 1.0),
-        textures: textures.to_vec(),
-        sprites,
-        texts,
+fn push_title_load_texts(
+    texts: &mut Vec<FrameText>,
+    config: &crate::config::TitleScreenConfig,
+    saves: &SaveManager,
+    selected: usize,
+) {
+    texts.push(FrameText::new(
+        config.labels.load_heading.clone(),
+        Rect::new(752.0, 158.0, 304.0, 42.0),
+        Color::rgba(0.88, 0.9, 0.96, 1.0),
+        102,
+    ));
+
+    let entries = title_load_entries(config, saves);
+    for (index, label) in entries.into_iter().enumerate() {
+        let marker = if index == selected { "> " } else { "  " };
+        let color = if index == selected {
+            Color::WHITE
+        } else if title_load_entry_available(index, saves) {
+            Color::rgba(0.76, 0.8, 0.88, 1.0)
+        } else {
+            Color::rgba(0.46, 0.5, 0.58, 1.0)
+        };
+        texts.push(FrameText::new(
+            format!("{marker}{label}"),
+            Rect::new(776.0, 260.0 + index as f32 * 58.0, 256.0, 30.0),
+            color,
+            110 + index as i32,
+        ));
+    }
+}
+
+fn push_title_settings_texts(
+    texts: &mut Vec<FrameText>,
+    config: &crate::config::TitleScreenConfig,
+    settings: &UserSettings,
+    selected: usize,
+) {
+    texts.push(FrameText::new(
+        config.labels.settings_heading.clone(),
+        Rect::new(752.0, 158.0, 304.0, 42.0),
+        Color::rgba(0.88, 0.9, 0.96, 1.0),
+        102,
+    ));
+
+    let entries = [
+        format!(
+            "Text Speed: {} cps",
+            settings.text.speed_chars_per_second.round() as u32
+        ),
+        format!("Auto Delay: {} ms", settings.text.auto_advance_delay_ms),
+        format!(
+            "Master Volume: {}%",
+            (settings.audio.master_volume.clamp(0.0, 1.0) * 100.0).round() as u32
+        ),
+        config.labels.back.clone(),
+    ];
+
+    for (index, label) in entries.into_iter().enumerate() {
+        let marker = if index == selected { "> " } else { "  " };
+        let color = if index == selected {
+            Color::WHITE
+        } else {
+            Color::rgba(0.76, 0.8, 0.88, 1.0)
+        };
+        texts.push(FrameText::new(
+            format!("{marker}{label}"),
+            Rect::new(776.0, 260.0 + index as f32 * 58.0, 256.0, 30.0),
+            color,
+            110 + index as i32,
+        ));
+    }
+}
+
+fn title_load_entries(
+    config: &crate::config::TitleScreenConfig,
+    saves: &SaveManager,
+) -> Vec<String> {
+    let mut entries = Vec::with_capacity(TITLE_LOAD_ENTRY_COUNT);
+    entries.push(save_entry_label(
+        &config.labels.autosave,
+        saves.autosave(),
+        &config.labels.empty_slot,
+    ));
+    for slot in 0..TITLE_LOAD_SLOT_COUNT {
+        entries.push(save_entry_label(
+            &format!("Slot {}", slot + 1),
+            saves.load_slot(slot),
+            &config.labels.empty_slot,
+        ));
+    }
+    entries.push(config.labels.back.clone());
+    entries
+}
+
+fn save_entry_label(prefix: &str, state: Option<&GameState>, empty_label: &str) -> String {
+    let Some(state) = state else {
+        return format!("{prefix}: {empty_label}");
+    };
+    let title = if state.metadata.title.trim().is_empty() {
+        "Saved game"
+    } else {
+        state.metadata.title.trim()
+    };
+    format!("{prefix}: {title}")
+}
+
+fn title_load_entry_available(index: usize, saves: &SaveManager) -> bool {
+    match index {
+        0 => saves.autosave().is_some(),
+        index @ 1..=TITLE_LOAD_SLOT_COUNT => saves.load_slot(index - 1).is_some(),
+        _ => true,
     }
 }
 
