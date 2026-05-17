@@ -75,7 +75,7 @@ cargo run -p suzu-xp3-viewer -- D:\game\data.xp3
 
 ## Runtime Flow
 
-1. Parse `.szs` source into a `ScriptDocument`.
+1. Parse `.szs` source into a `ScriptDocument`. The parser detects `syntax=classic`, `syntax=indent`, `syntax=braces`, or `syntax=markup` from the script header.
 2. Compile the document into VM commands.
 3. Feed commands into `SuzuApp`.
 4. Optionally show the title screen when `GameConfig.title_screen.enabled` is true.
@@ -117,8 +117,33 @@ Set `GameConfig.title_screen.enabled = true` to start on a title menu instead of
 - `examples/hello-world`: minimal script, title screen, and asset packing flow.
 - `examples/branching-story`: title screen, choices, labels, and conditional variables.
 - `examples/ui-save-load-demo`: title screen, save/load, settings, history, and menu flows.
+- `examples/short-vn-demo`: first complete short VN slice covering title screen, choices, variables, autosave, effects, and packaging.
 - `examples/stress-scene`: script-level stress scene for benchmark inputs.
 - `examples/web-browser-shell`: static browser canvas shell for future Wasm bundles.
+
+## Script Writing Styles
+
+Classic `.szs` remains the default:
+
+```text
+@script version=1
+@bg file="school"
+# Suzu
+Hello.
+```
+
+For hand-written stories, the indentation style is often easier to scan:
+
+```text
+@script version=1 syntax=indent
+bg file="school"
+Suzu: Hello.
+choice "Library" goto=library
+label library:
+Suzu: Let us begin.
+```
+
+Programmatic tools can choose `syntax=braces` or `syntax=markup` when that shape is easier to generate. See `docs/scripting-reference.md` for the full style guide and equivalent examples.
 
 ## Visual Script Editor
 

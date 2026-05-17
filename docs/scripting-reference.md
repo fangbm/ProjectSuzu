@@ -21,6 +21,15 @@ If `syntax` is omitted, Project Suzu uses `classic`. All styles compile into the
 
 ## Syntax Styles
 
+Use one style per file. Mixed style is only intended for small escape hatches, such as writing a classic `@custom` command inside an indent script while experimenting with custom extension commands.
+
+| Style | Best For | Notes |
+| --- | --- | --- |
+| `classic` | Stable examples and compatibility | Original line-oriented Project Suzu syntax. |
+| `indent` | Hand-written story scripts | Python-like blocks; indentation closes `if` blocks. |
+| `braces` | Programmers and generators | C-like call statements and brace blocks. |
+| `markup` | Editor export and structured tools | Tag syntax with quoted attributes. |
+
 Classic style is the original `.szs` form:
 
 ```text
@@ -76,6 +85,57 @@ Markup style is useful for editor export and tag-oriented workflows:
 ```
 
 The non-classic styles are parser front ends. They are intended for core VN flow commands first; custom or unusual commands can still use classic `@command` lines inside indent and markup documents.
+
+### Style Rules
+
+- `classic` labels use `*label`; `indent` can use `label name:`; `braces` can use `label("name");`; `markup` can use `<label name="name" />`.
+- `classic` speaker lines use `# Speaker` followed by text; `indent` and `braces` also accept `Speaker: text`; `markup` uses `<say speaker="Speaker">text</say>`.
+- `indent` closes `if` blocks when indentation returns to the parent level.
+- `braces` closes `if` blocks with `}` and can pair `} else {` as expected.
+- `markup` closes conditional blocks with `</if>` and can place `<else />` inside the block.
+- All attribute names are the same across styles: `file`, `goto`, `cond`, `time`, `duration`, `type`, `name`, `face`, and so on.
+
+Equivalent choice syntax:
+
+```text
+@choice "Library" goto=library cond=trust>=50
+choice "Library" goto=library cond=trust>=50
+choice("Library", goto=library, cond="trust>=50");
+<choice text="Library" goto="library" cond="trust>=50" />
+```
+
+Equivalent condition syntax:
+
+```text
+@if cond=trust>=50
+Unlocked route.
+@else
+Locked route.
+@endif
+```
+
+```text
+if cond=trust>=50:
+    Unlocked route.
+else:
+    Locked route.
+```
+
+```text
+if(cond="trust>=50") {
+    Unlocked route;
+} else {
+    Locked route;
+}
+```
+
+```html
+<if cond="trust>=50">
+  Unlocked route.
+  <else />
+  Locked route.
+</if>
+```
 
 ## Dialogue
 

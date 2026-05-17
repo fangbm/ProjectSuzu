@@ -218,10 +218,16 @@ GameConfig {
 
 ## 编写脚本
 
-Project Suzu 脚本使用 `.szs` 格式。最小脚本：
+Project Suzu 脚本使用 `.szs` 格式。脚本文件第一行建议写版本声明：
 
 ```text
 @script version=1
+```
+
+如果不指定额外字段，脚本使用默认的 `classic` 风格。最小脚本：
+
+```text
+@script version=1 syntax=classic
 @bg file="bg_school_evening" time=500 method=crossfade
 # 铃
 你好，欢迎来到 Project Suzu。[l][r]
@@ -238,6 +244,112 @@ Project Suzu 脚本使用 `.szs` 格式。最小脚本：
 - `[r]` 是换行控制标签。
 
 完整命令参考见 `docs/scripting-reference.md`。
+
+### 选择脚本风格
+
+同一个 `.szs version=1` 可以使用不同的表层写法。它们都会编译成同一套运行时命令，因此存档、资源打包、标题界面、系统菜单和历史记录行为是一致的。
+
+可选风格：
+
+```text
+@script version=1 syntax=classic
+@script version=1 syntax=indent
+script(version=1, syntax=braces);
+<script version="1" syntax="markup" />
+```
+
+建议选择：
+
+- `classic`：最稳定，适合示例、文档、工具导入导出和兼容旧脚本。
+- `indent`：适合手写剧情。对白、标签、条件分支更接近普通写作文本。
+- `braces`：适合程序员、生成器或需要接近代码结构的团队。
+- `markup`：适合编辑器导出、结构化文本处理和与标签类工具互通。
+
+四种风格的等价写法示例：
+
+```text
+@script version=1 syntax=classic
+@bg file="school" method=crossfade time=500
+# Suzu
+早上好。[l][r]
+@choice "去图书馆" goto=library
+*library
+# Suzu
+我们从这里开始。
+```
+
+```text
+@script version=1 syntax=indent
+bg file="school" method=crossfade time=500
+Suzu: 早上好。[l][r]
+choice "去图书馆" goto=library
+label library:
+Suzu: 我们从这里开始。
+```
+
+```text
+script(version=1, syntax=braces);
+bg(file="school", method=crossfade, time=500);
+Suzu: 早上好。[l][r];
+choice("去图书馆", goto=library);
+label("library");
+Suzu: 我们从这里开始;
+```
+
+```html
+<script version="1" syntax="markup" />
+<scene>
+  <bg file="school" method="crossfade" time="500" />
+  <say speaker="Suzu">早上好。[l][r]</say>
+  <choice text="去图书馆" goto="library" />
+  <label name="library" />
+  <say speaker="Suzu">我们从这里开始。</say>
+</scene>
+```
+
+风格选择只影响解析阶段，不影响命令语义。比如 `@bg file="school"`、`bg file="school"`、`bg(file="school")`、`<bg file="school" />` 最终都是背景切换命令。
+
+### 编写建议
+
+把脚本按“场景、选择、共通段、结尾”组织，比按功能命令堆叠更容易维护：
+
+```text
+@script version=1 syntax=indent
+bg file="station_morning" method=crossfade time=700
+Suzu: 列车晚点了，但故事准时开始。[l][r]
+choice "整理笔记" goto=notes
+choice "查看站台" goto=platform
+
+label notes:
+set name=trust value=60
+Suzu: 那我们先把今天要验证的功能列出来。
+jump goto=after_choice
+
+label platform:
+set name=trust value=35
+Suzu: 站台很安静，适合做一次短路线测试。
+
+label after_choice:
+if cond=trust>=50:
+    Suzu: 你解锁了更轻松的说明路线。
+else:
+    Suzu: 那就用更短的技术路线说明。
+```
+
+命名建议：
+
+- 背景资源用场景名：`bg_station_morning`、`bg_library_afternoon`。
+- 角色资源用 `name_face`：`suzu_smile`、`suzu_thinking`。
+- 标签用小写英文和下划线：`label after_choice:` 或 `*after_choice`。
+- 变量用剧情含义：`trust`、`affection_suzu`、`route_unlocked`。
+
+调试建议：
+
+```powershell
+cargo run -p suzu-compiler -- examples\short-vn-demo\script\main.szs
+```
+
+先让编译器通过，再运行游戏。未知命令、缺少属性和脚本版本错误会带行列信息。
 
 ## 场景和角色命令
 
