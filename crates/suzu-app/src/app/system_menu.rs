@@ -64,3 +64,11 @@ impl SuzuApp {
         }
     }
 }
+
+pub(super) fn system_menu_item_bounds(index: usize) -> Rect {
+    Rect::new(472.0, 184.0 + index as f32 * 58.0, 336.0, 42.0)
+}
+
+pub(super) fn system_menu_index_at(position: Vec2) -> Option<usize> {
+    (0..SYSTEM_MENU_ACTIONS.len()).find(|index| system_menu_item_bounds(*index).contains(position))
+}

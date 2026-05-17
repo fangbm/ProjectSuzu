@@ -101,6 +101,20 @@ fn title_screen_mouse_click_activates_hit_menu_item() {
 }
 
 #[test]
+fn title_screen_mouse_click_outside_menu_does_not_start_game() {
+    let mut app = SuzuApp::new(title_config());
+    app.load_script("# N\nFirst").unwrap();
+
+    app.handle_input_event(InputEvent::PointerDown {
+        position: Vec2::new(24.0, 24.0),
+    });
+    app.tick(0);
+
+    assert!(app.title_screen_visible());
+    assert!(app.scene.dialogue.is_none());
+}
+
+#[test]
 fn title_screen_mouse_hover_selects_menu_item_without_activation() {
     let mut app = SuzuApp::new(title_config());
     app.load_script("# N\nFirst").unwrap();

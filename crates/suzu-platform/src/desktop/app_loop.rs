@@ -130,8 +130,6 @@ where
             } => {
                 if let Some(position) = self.cursor_position {
                     self.app.input(DesktopInputEvent::PointerDown { position });
-                } else {
-                    self.app.input(DesktopInputEvent::Confirm);
                 }
                 window.request_redraw();
             }

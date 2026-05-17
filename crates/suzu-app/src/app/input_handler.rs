@@ -12,19 +12,27 @@ impl SuzuApp {
             if self.system_menu_visible {
                 match event {
                     InputEvent::Cancel => self.close_system_menu(),
-                    InputEvent::Confirm
-                    | InputEvent::PointerDown { .. }
-                    | InputEvent::TouchStart { .. } => {
+                    InputEvent::Confirm => {
                         self.activate_system_menu_selection();
+                    }
+                    InputEvent::PointerDown { position }
+                    | InputEvent::TouchStart { position, .. } => {
+                        if let Some(index) = system_menu::system_menu_index_at(position) {
+                            self.system_menu_selected = index;
+                            self.activate_system_menu_selection();
+                        }
+                    }
+                    InputEvent::PointerMove { position }
+                    | InputEvent::TouchMove { position, .. } => {
+                        if let Some(index) = system_menu::system_menu_index_at(position) {
+                            self.system_menu_selected = index;
+                        }
                     }
                     InputEvent::Scroll { delta } => {
                         self.move_system_menu_selection(if delta < 0.0 { 1 } else { -1 });
                     }
                     InputEvent::MoveSelection { delta } => self.move_system_menu_selection(delta),
-                    InputEvent::PointerUp { .. }
-                    | InputEvent::PointerMove { .. }
-                    | InputEvent::TouchMove { .. }
-                    | InputEvent::TouchEnd { .. } => {}
+                    InputEvent::PointerUp { .. } | InputEvent::TouchEnd { .. } => {}
                 }
                 continue;
             }

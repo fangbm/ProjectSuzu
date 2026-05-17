@@ -207,6 +207,7 @@ impl SuzuApp {
         } else {
             self.advance_until_waiting();
         }
+        self.clear_completed_dialogue_if_script_finished();
     }
 
     fn confirm_choice(&mut self) -> bool {
@@ -232,6 +233,29 @@ impl SuzuApp {
             if let Some(key) = &self.current_dialogue_key {
                 self.read_dialogue_keys.insert(key.clone());
             }
+        }
+    }
+
+    fn clear_completed_dialogue_if_script_finished(&mut self) {
+        if self.wait_timer_ms.is_some()
+            || self.scene.choice.is_some()
+            || self.script.position() < self.script.len()
+        {
+            return;
+        }
+
+        if self
+            .scene
+            .dialogue
+            .as_ref()
+            .map_or(true, |dialogue| dialogue.reveal.is_complete())
+        {
+            self.scene.dialogue = None;
+            self.scene.message_box_visible = false;
+            self.current_dialogue_key = None;
+            self.auto_mode = false;
+            self.auto_advance_elapsed_ms = 0;
+            self.skip_mode = false;
         }
     }
 

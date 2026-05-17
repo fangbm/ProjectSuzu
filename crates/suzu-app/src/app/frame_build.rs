@@ -114,12 +114,7 @@ impl DesktopApp for SuzuApp {
             ));
             sprites.push(FrameSprite::solid(
                 "system_menu_selection",
-                Rect::new(
-                    472.0,
-                    184.0 + self.system_menu_selected as f32 * 58.0,
-                    336.0,
-                    42.0,
-                ),
+                system_menu::system_menu_item_bounds(self.system_menu_selected),
                 Color::rgba(0.16, 0.22, 0.32, 0.95),
                 21_001,
             ));

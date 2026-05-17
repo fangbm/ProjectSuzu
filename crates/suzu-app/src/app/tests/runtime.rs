@@ -73,6 +73,22 @@ fn confirm_does_not_skip_wait_command() {
 }
 
 #[test]
+fn confirm_after_last_dialogue_clears_message_box() {
+    let mut app = SuzuApp::new(GameConfig::default());
+    app.load_script("# N\nLast").unwrap();
+
+    app.advance_until_waiting();
+    app.reveal_dialogue_now();
+    assert!(app.scene.message_box_visible);
+
+    app.confirm();
+
+    assert_eq!(app.script.position(), app.script.len());
+    assert!(app.scene.dialogue.is_none());
+    assert!(!app.scene.message_box_visible);
+}
+
+#[test]
 fn message_box_visibility_commands_affect_frame_output() {
     let mut app = SuzuApp::new(GameConfig::default());
     app.load_script("# N\nLine\n@hidemsg\n@showmsg").unwrap();

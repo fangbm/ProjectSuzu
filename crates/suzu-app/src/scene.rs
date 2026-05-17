@@ -45,7 +45,7 @@ impl Default for DialogueBoxStyle {
             box_bounds: Rect::new(120.0, 500.0, 1040.0, 152.0),
             text_bounds: Rect::new(144.0, 548.0, 992.0, 86.0),
             speaker_bounds: Rect::new(144.0, 484.0, 220.0, 42.0),
-            prompt_bounds: Rect::new(1096.0, 612.0, 32.0, 24.0),
+            prompt_bounds: Rect::new(1072.0, 612.0, 72.0, 24.0),
             box_color: Color::rgba(0.02, 0.025, 0.035, 0.9),
             speaker_color: Color::rgba(0.12, 0.16, 0.24, 0.96),
             prompt_text: "next".to_owned(),
