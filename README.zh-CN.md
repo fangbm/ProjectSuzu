@@ -86,7 +86,7 @@ cargo run -p suzu-launcher -- --krkr2suzu "D:\game" "D:\out" --xp3-plugin D:\plu
 
 明文 XP3 支持范围见：[docs/xp3-support.md](docs/xp3-support.md)。外部 XP3 处理器接口说明见：[docs/xp3-plugin-interface.md](docs/xp3-plugin-interface.md)。
 
-快速上手见：[docs/getting-started.md](docs/getting-started.md)。完整框架使用指南见：[docs/framework-guide.md](docs/framework-guide.md)。最小项目模板见：[templates/minimal-vn](templates/minimal-vn)。短篇 VN demo 计划见：[docs/short-vn-demo.md](docs/short-vn-demo.md)。API 稳定性说明见：[docs/api-stability.md](docs/api-stability.md)。第三方依赖许可证见：[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md)。品牌素材边界见：[assets/branding/README.md](assets/branding/README.md)。
+快速上手见：[docs/getting-started.zh-CN.md](docs/getting-started.zh-CN.md)。完整框架使用指南见：[docs/framework-guide.zh-CN.md](docs/framework-guide.zh-CN.md)。最小项目模板见：[templates/minimal-vn/README.zh-CN.md](templates/minimal-vn/README.zh-CN.md)。短篇 VN demo 计划见：[docs/short-vn-demo.zh-CN.md](docs/short-vn-demo.zh-CN.md)。API 稳定性说明见：[docs/api-stability.zh-CN.md](docs/api-stability.zh-CN.md)。脚本参考见：[docs/scripting-reference.zh-CN.md](docs/scripting-reference.zh-CN.md)。XP3 插件接口见：[docs/xp3-plugin-interface.zh-CN.md](docs/xp3-plugin-interface.zh-CN.md)。第三方依赖许可证原文见：[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md)，中文导读见：[THIRD_PARTY_LICENSES.zh-CN.md](THIRD_PARTY_LICENSES.zh-CN.md)。品牌素材边界见：[assets/branding/README.zh-CN.md](assets/branding/README.zh-CN.md)。
 
 性能 smoke test：
 
@@ -126,7 +126,7 @@ cargo run -p suzu-bench -- 1000
 
 完整参考见：
 
-[docs/scripting-reference.md](docs/scripting-reference.md)
+[docs/scripting-reference.zh-CN.md](docs/scripting-reference.zh-CN.md)
 
 ## 编译脚本
 
@@ -182,11 +182,11 @@ cargo test -p suzu-script --features lua
 
 开发检查清单见：
 
-[docs/developer-checks.md](docs/developer-checks.md)
+[docs/developer-checks.zh-CN.md](docs/developer-checks.zh-CN.md)
 
 可视化剧本编辑器开发文档见：
 
-[docs/visual-script-editor-development-plan.md](docs/visual-script-editor-development-plan.md)
+[docs/visual-script-editor-development-plan.zh-CN.md](docs/visual-script-editor-development-plan.zh-CN.md)
 
 ## 项目结构
 
@@ -206,11 +206,11 @@ cargo test -p suzu-script --features lua
 
 ## 文档
 
-- [docs/user-guide.md](docs/user-guide.md)
-- [docs/scripting-reference.md](docs/scripting-reference.md)
-- [docs/release-packaging.md](docs/release-packaging.md)
-- [docs/developer-checks.md](docs/developer-checks.md)
-- [docs/release-checklist.md](docs/release-checklist.md)
+- [docs/user-guide.zh-CN.md](docs/user-guide.zh-CN.md)
+- [docs/scripting-reference.zh-CN.md](docs/scripting-reference.zh-CN.md)
+- [docs/release-packaging.zh-CN.md](docs/release-packaging.zh-CN.md)
+- [docs/developer-checks.zh-CN.md](docs/developer-checks.zh-CN.md)
+- [docs/release-checklist.zh-CN.md](docs/release-checklist.zh-CN.md)
 
 ## 许可证
 

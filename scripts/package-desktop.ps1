@@ -12,20 +12,56 @@ $targetDir = Join-Path $repo "target/$Configuration"
 $dist = Join-Path $repo $Output
 $distParent = Split-Path -Parent $dist
 $exeSuffix = if ($IsWindows -or $env:OS -eq "Windows_NT") { ".exe" } else { "" }
+$rootDocFiles = @(
+    "README.md",
+    "README.zh-CN.md",
+    "CONTRIBUTING.md",
+    "CONTRIBUTING.zh-CN.md",
+    "SECURITY.md",
+    "SECURITY.zh-CN.md",
+    "LEGAL.md",
+    "LEGAL.zh-CN.md",
+    "LICENSE-MIT",
+    "LICENSE-APACHE",
+    "THIRD_PARTY_LICENSES.md",
+    "THIRD_PARTY_LICENSES.zh-CN.md",
+    "CHANGELOG.md",
+    "CHANGELOG.zh-CN.md"
+)
+$brandingFiles = @(
+    "assets/branding/Suzu_icon.png",
+    "assets/branding/README.md",
+    "assets/branding/README.zh-CN.md"
+)
 $docFiles = @(
     "docs/framework-guide.md",
+    "docs/framework-guide.zh-CN.md",
     "docs/getting-started.md",
+    "docs/getting-started.zh-CN.md",
     "docs/implementation-checklist.md",
+    "docs/implementation-checklist.zh-CN.md",
     "docs/user-guide.md",
+    "docs/user-guide.zh-CN.md",
     "docs/scripting-reference.md",
+    "docs/scripting-reference.zh-CN.md",
     "docs/short-vn-demo.md",
+    "docs/short-vn-demo.zh-CN.md",
     "docs/xp3-support.md",
+    "docs/xp3-support.zh-CN.md",
     "docs/xp3-plugin-interface.md",
+    "docs/xp3-plugin-interface.zh-CN.md",
     "docs/api-stability.md",
+    "docs/api-stability.zh-CN.md",
     "docs/visual-script-editor-development-plan.md",
+    "docs/visual-script-editor-development-plan.zh-CN.md",
+    "docs/project-plan.md",
+    "docs/project-plan.zh-CN.md",
     "docs/release-packaging.md",
+    "docs/release-packaging.zh-CN.md",
     "docs/developer-checks.md",
-    "docs/release-checklist.md"
+    "docs/developer-checks.zh-CN.md",
+    "docs/release-checklist.md",
+    "docs/release-checklist.zh-CN.md"
 )
 $binaries = @(
     "suzu-compiler",
@@ -43,7 +79,7 @@ $binaries = @(
 Push-Location $repo
 try {
     if ($Check) {
-        foreach ($path in @("README.md", "README.zh-CN.md", "CONTRIBUTING.md", "SECURITY.md", "LEGAL.md", "LICENSE-MIT", "LICENSE-APACHE", "THIRD_PARTY_LICENSES.md", "CHANGELOG.md", "assets/branding/Suzu_icon.png", "assets/branding/README.md", "templates/minimal-vn", "examples/short-vn-demo", $AssetRoot) + $docFiles) {
+        foreach ($path in ($rootDocFiles + $brandingFiles + @("templates/minimal-vn", "examples/short-vn-demo", $AssetRoot) + $docFiles)) {
             if (-not (Test-Path $path)) {
                 throw "Missing package input: $path"
             }
@@ -76,17 +112,12 @@ try {
         Copy-Item (Join-Path $targetDir "$binary$exeSuffix") (Join-Path $dist "$binary$exeSuffix")
     }
 
-    Copy-Item "README.md" (Join-Path $dist "README.md")
-    Copy-Item "README.zh-CN.md" (Join-Path $dist "README.zh-CN.md")
-    Copy-Item "CONTRIBUTING.md" (Join-Path $dist "CONTRIBUTING.md")
-    Copy-Item "SECURITY.md" (Join-Path $dist "SECURITY.md")
-    Copy-Item "LEGAL.md" (Join-Path $dist "LEGAL.md")
-    Copy-Item "LICENSE-MIT" (Join-Path $dist "LICENSE-MIT")
-    Copy-Item "LICENSE-APACHE" (Join-Path $dist "LICENSE-APACHE")
-    Copy-Item "THIRD_PARTY_LICENSES.md" (Join-Path $dist "THIRD_PARTY_LICENSES.md")
-    Copy-Item "CHANGELOG.md" (Join-Path $dist "CHANGELOG.md")
-    Copy-Item "assets/branding/Suzu_icon.png" (Join-Path $dist "assets/branding/Suzu_icon.png")
-    Copy-Item "assets/branding/README.md" (Join-Path $dist "assets/branding/README.md")
+    foreach ($rootDocFile in $rootDocFiles) {
+        Copy-Item $rootDocFile (Join-Path $dist $rootDocFile)
+    }
+    foreach ($brandingFile in $brandingFiles) {
+        Copy-Item $brandingFile (Join-Path $dist $brandingFile)
+    }
     foreach ($docFile in $docFiles) {
         Copy-Item $docFile (Join-Path $dist $docFile)
     }

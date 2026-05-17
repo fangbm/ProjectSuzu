@@ -6,6 +6,7 @@
 - Added the first `examples/short-vn-demo` slice and planning documentation for the complete short VN proof.
 - Updated scripting reference examples to match current `@anim` and `@fx` attribute names.
 - Added parser front ends for `syntax=indent`, `syntax=braces`, and `syntax=markup` while keeping the existing classic `.szs` syntax as the default.
+- Added Simplified Chinese companion documentation across repository docs, templates, examples, and release packages.
 
 ## 0.1.6 - 2026-05-15
 
