@@ -6,7 +6,7 @@ Project Suzu is a local game framework and toolchain. It still processes untrust
 
 | Version | Supported |
 | --- | --- |
-| 0.1.x | yes |
+| 0.2.x | yes |
 
 ## Reporting
 
@@ -30,3 +30,11 @@ For now, report security issues privately to the project maintainers before publ
 ## External XP3 Plugins
 
 External XP3 plugins are intentionally not bundled with Project Suzu. A plugin module can launch an arbitrary executable, so only run modules from trusted sources and only for assets you are authorized to process. Keep plugin paths local, avoid shell wrappers when possible, and verify that processor output preserves byte counts unless the schema explicitly changes in a future version.
+
+Before running an external plugin, review:
+
+- whether the command path points to a trusted local executable;
+- whether the processor comes from auditable source or a known publisher;
+- whether the module or binary embeds keys, private rules, or game-specific handling;
+- whether the module states the asset scope it is authorized to process;
+- whether the processor uploads local files, opens network connections, or runs shell wrappers.

@@ -494,6 +494,74 @@ fn compiles_markup_syntax_script() {
 }
 
 #[test]
+fn syntax_frontends_compile_equivalent_core_flow() {
+    let classic = compile_script(
+        r#"@script version=1 syntax=classic
+@bg file="school" method=crossfade time=500
+# Suzu
+Hello from every style.
+@choice "Library" goto=library
+*library
+@if cond=flag
+# Suzu
+Open route.
+@else
+# Suzu
+Closed route.
+@endif
+"#,
+    )
+    .unwrap();
+    let indent = compile_script(
+        r#"@script version=1 syntax=indent
+bg file="school" method=crossfade time=500
+Suzu: Hello from every style.
+choice "Library" goto=library
+label library:
+if cond=flag:
+    Suzu: Open route.
+else:
+    Suzu: Closed route.
+"#,
+    )
+    .unwrap();
+    let braces = compile_script(
+        r#"@script version=1 syntax=braces
+bg(file="school", method=crossfade, time=500);
+Suzu: Hello from every style.;
+choice("Library", goto=library);
+label("library");
+if(cond=flag) {
+    Suzu: Open route.;
+} else {
+    Suzu: Closed route.;
+}
+"#,
+    )
+    .unwrap();
+    let markup = compile_script(
+        r#"@script version=1 syntax=markup
+<scene>
+  <bg file="school" method="crossfade" time="500" />
+  <say speaker="Suzu">Hello from every style.</say>
+  <choice text="Library" goto="library" />
+  <label name="library" />
+  <if cond="flag">
+    <say speaker="Suzu">Open route.</say>
+    <else />
+    <say speaker="Suzu">Closed route.</say>
+  </if>
+</scene>
+"#,
+    )
+    .unwrap();
+
+    assert_eq!(classic, indent);
+    assert_eq!(classic, braces);
+    assert_eq!(classic, markup);
+}
+
+#[test]
 fn compiles_quoted_values_with_spaces() {
     let commands = compile_script(
         "@savename text=\"Chapter 1 - The First Bell\"\n@choice \"Go home\" goto=home",

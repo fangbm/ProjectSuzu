@@ -2,7 +2,7 @@
 
 这份文档面向第一次打开 Project Suzu 的开发者，目标是在一个短流程里跑通：安装工具链、运行示例、用零代码工程启动剧情、编译脚本、打包资源和执行本地自检。更完整的框架说明见 `docs/framework-guide.md`。
 
-Project Suzu 目前仍是 `0.1.x` 阶段。它适合原创视觉小说原型、脚本工具链实验、授权资源迁移验证，以及 Rust 应用内嵌视觉小说运行时；它不是完整 KRKR/TJS/KAG 替代品，也不内置商业游戏专用 XP3 处理器。
+Project Suzu 目前处于 `0.2.x` 阶段。它适合原创视觉小说原型、脚本优先的作者工作流、授权资源迁移验证，以及 Rust 应用内嵌视觉小说运行时；它不是完整 KRKR/TJS/KAG 替代品，也不内置商业游戏专用 XP3 处理器。
 
 ## 1. 准备 Rust
 
@@ -206,5 +206,5 @@ XP3 支持边界见 `docs/xp3-support.md`，外部处理器接口见 `docs/xp3-p
 - 读 `docs/project-layout.md`，了解零代码工程目录、`game.suzu.toml` 和资源 ID 规则。
 - 读 `docs/framework-guide.md`，了解运行时 API、存档、标题界面、菜单和桌面平台层。
 - 读 `docs/scripting-reference.md`，补齐 `.szs` 脚本语法。
-- 读 `docs/api-stability.md`，确认哪些接口在 `0.1.x` 内会尽量保持兼容。
+- 读 `docs/api-stability.md`，确认哪些接口在 `0.2.x` 内会尽量保持兼容。
 - 从 `templates/starter-vn` 复制一个项目，替换脚本和资源；需要 Rust 自定义入口时再参考 `templates/minimal-vn`。

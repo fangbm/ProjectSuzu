@@ -39,9 +39,20 @@ fn run() -> Result<()> {
         println!("Project Suzu Player check OK");
         println!("version: {}", env!("CARGO_PKG_VERSION"));
         println!("project: {}", report.root.display());
+        match &report.config_path {
+            Some(path) => println!("config: {}", path.display()),
+            None => println!("config: convention defaults"),
+        }
         println!("entry: {}", report.entry_path.display());
         println!("assets: {}", report.registered_assets);
         println!("packages: {}", report.registered_packages);
+        let warnings = report.warnings();
+        if !warnings.is_empty() {
+            println!("warnings: {}", warnings.len());
+            for warning in warnings {
+                println!("warning: {warning}");
+            }
+        }
         return Ok(());
     }
 

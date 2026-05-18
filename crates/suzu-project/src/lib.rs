@@ -122,16 +122,49 @@ pub struct ProjectCheck {
     pub registered_packages: usize,
 }
 
+impl ProjectCheck {
+    pub fn from_loaded(loaded: &LoadedProject) -> Self {
+        Self {
+            root: loaded.root.clone(),
+            config_path: loaded.config_path.clone(),
+            entry_path: loaded.entry_path.clone(),
+            registered_assets: loaded.registered_assets,
+            registered_packages: loaded.registered_packages,
+        }
+    }
+
+    pub fn warnings(&self) -> Vec<String> {
+        project_check_warnings(self)
+    }
+}
+
 pub fn load_project(root: impl AsRef<Path>, options: ProjectLoadOptions) -> Result<LoadedProject> {
     let root = project_root_from_input(root.as_ref())?;
     let (config_path, mut config) = read_project_config(&root)?;
     apply_legacy_entry_fallback(&root, &mut config);
+    let entry_overridden = options.entry_override.is_some();
     if let Some(entry) = options.entry_override {
         config.entry = normalize_config_path(&entry);
     }
 
     let entry_path = root.join(config.entry.replace('/', std::path::MAIN_SEPARATOR_STR));
     if !entry_path.is_file() {
+        if entry_overridden {
+            bail!(
+                "entry override script does not exist: {} (passed as `{}`)",
+                entry_path.display(),
+                config.entry
+            );
+        }
+        if config_path.is_none() {
+            bail!(
+                "project config does not exist: {}; entry script does not exist: {} (expected `{}` or legacy `{}`)",
+                root.join(PROJECT_CONFIG_FILE).display(),
+                entry_path.display(),
+                DEFAULT_ENTRY,
+                LEGACY_ENTRY
+            );
+        }
         bail!(
             "entry script does not exist: {} (configured as `{}`)",
             entry_path.display(),
@@ -182,13 +215,7 @@ pub fn load_project(root: impl AsRef<Path>, options: ProjectLoadOptions) -> Resu
 
 pub fn check_project(root: impl AsRef<Path>, options: ProjectLoadOptions) -> Result<ProjectCheck> {
     let loaded = load_project(root, options)?;
-    Ok(ProjectCheck {
-        root: loaded.root,
-        config_path: loaded.config_path,
-        entry_path: loaded.entry_path,
-        registered_assets: loaded.registered_assets,
-        registered_packages: loaded.registered_packages,
-    })
+    Ok(ProjectCheck::from_loaded(&loaded))
 }
 
 pub fn write_default_project_config(root: impl AsRef<Path>) -> Result<PathBuf> {
@@ -298,6 +325,23 @@ fn register_asset_root(app: &mut SuzuApp, root: &Path) -> Result<usize> {
     Ok(count)
 }
 
+fn project_check_warnings(report: &ProjectCheck) -> Vec<String> {
+    let mut warnings = Vec::new();
+    if report.config_path.is_none() {
+        warnings.push(format!(
+            "{} not found; using convention defaults. Add this file before publishing a project.",
+            PROJECT_CONFIG_FILE
+        ));
+    }
+    if report.registered_assets == 0 && report.registered_packages == 0 {
+        warnings.push(
+            "no supported assets were found in configured asset roots; add images, audio, fonts, scripts, data, or package files when ready."
+                .to_owned(),
+        );
+    }
+    warnings
+}
+
 fn register_asset_dir(app: &mut SuzuApp, root: &Path, dir: &Path, count: &mut usize) -> Result<()> {
     for entry in fs::read_dir(dir).with_context(|| format!("failed to read {}", dir.display()))? {
         let entry = entry?;
@@ -370,6 +414,16 @@ mod tests {
         assert_eq!(loaded.config.entry, DEFAULT_ENTRY);
         assert_eq!(loaded.entry_path, root.join("scenario/main.szs"));
         assert!(loaded.app.title_screen_visible());
+
+        let report = check_project(&root, ProjectLoadOptions::default()).unwrap();
+        assert!(report
+            .warnings()
+            .iter()
+            .any(|warning| warning.contains(PROJECT_CONFIG_FILE)));
+        assert!(report
+            .warnings()
+            .iter()
+            .any(|warning| warning.contains("no supported assets")));
 
         let _ = fs::remove_dir_all(root);
     }
@@ -476,8 +530,51 @@ files = ["data.suzupack"]
 
         let error = load_project_error(&root);
 
+        assert!(error.contains("project config does not exist"));
         assert!(error.contains("entry script does not exist"));
         assert!(error.contains(DEFAULT_ENTRY));
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn missing_entry_override_reports_override_path() {
+        let root = test_dir("suzu-project-missing-entry-override");
+        fs::create_dir_all(root.join("scenario")).unwrap();
+        fs::create_dir_all(root.join("assets")).unwrap();
+        fs::write(root.join("scenario/main.szs"), "@script version=1\n# N\nHi").unwrap();
+
+        let error = match load_project(
+            &root,
+            ProjectLoadOptions {
+                entry_override: Some(PathBuf::from("scenario/missing.szs")),
+            },
+        ) {
+            Ok(_) => panic!("expected load_project to fail"),
+            Err(error) => format!("{error:#}"),
+        };
+
+        assert!(error.contains("entry override script does not exist"));
+        assert!(error.contains("scenario/missing.szs"));
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn compile_error_reports_entry_context() {
+        let root = test_dir("suzu-project-script-compile-error");
+        fs::create_dir_all(root.join("scenario")).unwrap();
+        fs::create_dir_all(root.join("assets")).unwrap();
+        fs::write(
+            root.join("scenario/main.szs"),
+            "@script version=999\n# N\nHi",
+        )
+        .unwrap();
+
+        let error = load_project_error(&root);
+
+        assert!(error.contains("failed to compile entry script"));
+        assert!(error.contains("scenario"));
 
         let _ = fs::remove_dir_all(root);
     }

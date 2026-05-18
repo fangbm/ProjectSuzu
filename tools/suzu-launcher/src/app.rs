@@ -153,11 +153,18 @@ impl LauncherApp {
         let path = PathBuf::from(clean_path_input(&self.project_path));
         match check_project(&path, ProjectLoadOptions::default()) {
             Ok(report) => {
+                let warnings = report.warnings();
+                let warning_note = if warnings.is_empty() {
+                    String::new()
+                } else {
+                    format!(" {} warnings.", warnings.len())
+                };
                 self.status = format!(
-                    "Project check OK: {} assets, {} packages, entry {}.",
+                    "Project check OK: {} assets, {} packages, entry {}.{}",
                     report.registered_assets,
                     report.registered_packages,
-                    report.entry_path.display()
+                    report.entry_path.display(),
+                    warning_note
                 );
                 self.project_check = Some(report);
             }
@@ -449,13 +456,7 @@ impl LauncherApp {
             }
         };
         self.status = format!("Started project entry {}.", loaded.entry_path.display());
-        self.project_check = Some(ProjectCheck {
-            root: loaded.root.clone(),
-            config_path: loaded.config_path.clone(),
-            entry_path: loaded.entry_path.clone(),
-            registered_assets: loaded.registered_assets,
-            registered_packages: loaded.registered_packages,
-        });
+        self.project_check = Some(ProjectCheck::from_loaded(&loaded));
         self.game = Some(GamePreview::new(
             loaded.app,
             loaded.entry_path.display().to_string(),

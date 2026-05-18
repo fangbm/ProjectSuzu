@@ -19,16 +19,22 @@ The current script format version is `1`. Scripts may also specify a surface syn
 
 If `syntax` is omitted, Project Suzu uses `classic`. All styles compile into the same command model, so runtime behavior, saves, packaging, and asset loading stay shared.
 
+## Choosing A Syntax
+
+Use `syntax=indent` for new hand-written story scripts. It keeps the script readable for writers, maps directly onto choices and conditional branches, and is the style used by the recommended starter workflow.
+
+Use `syntax=classic` when maintaining older scripts, writing low-level examples, or needing the most stable compatibility surface. Treat `syntax=braces` and `syntax=markup` as tool-facing front ends for generated scripts, import/export, and structured editors. During the editor MVP phase, Project Suzu aims for full editing support for `indent` and `classic`; `braces` and `markup` may be read or exported by tools before they receive full form-editing support.
+
 ## Syntax Styles
 
 Use one style per file. Mixed style is only intended for small escape hatches, such as writing a classic `@custom` command inside an indent script while experimenting with custom extension commands.
 
 | Style | Best For | Notes |
 | --- | --- | --- |
+| `indent` | Recommended new projects | Python-like blocks; indentation closes `if` blocks. |
 | `classic` | Stable examples and compatibility | Original line-oriented Project Suzu syntax. |
-| `indent` | Hand-written story scripts | Python-like blocks; indentation closes `if` blocks. |
-| `braces` | Programmers and generators | C-like call statements and brace blocks. |
-| `markup` | Editor export and structured tools | Tag syntax with quoted attributes. |
+| `braces` | Programmers and generators | C-like call statements and brace blocks; experimental for author editing. |
+| `markup` | Editor export and structured tools | Tag syntax with quoted attributes; experimental for author editing. |
 
 Classic style is the original `.szs` form:
 

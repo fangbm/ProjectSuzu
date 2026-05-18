@@ -6,7 +6,7 @@
 
 ![Project Suzu icon](assets/branding/Suzu_icon.png)
 
-Project Suzu is a Rust visual novel framework based on the project plan in `docs/project-plan.md`.
+Project Suzu is a Rust visual novel framework for building small original VN projects with a script-first author workflow. New projects can start from `templates/starter-vn` and run through `suzu-player` without writing a Rust entry point.
 
 The current repository includes a complete first framework slice with typed module boundaries for:
 
@@ -29,17 +29,16 @@ The desktop path creates a `winit` window, initializes a `wgpu` surface, uploads
 
 Desktop examples now start on a built-in title screen. The runtime title menu supports Start, Continue, Load, Settings, and Quit, and projects can enable it with `GameConfig.title_screen.enabled = true`.
 
+For author-facing projects, use `suzu-player` as the first entry point, keep scripts under `scenario/`, put assets under `assets/`, and prefer `syntax=indent` for new hand-written `.szs` files. `syntax=classic` remains the compatibility style; `syntax=braces` and `syntax=markup` are parser front ends for generators, imports, and structured tools.
+
 | Feature | Status |
 | --- | --- |
 | `.szs` parser/compiler | Stable-ish |
 | Runtime app facade | Experimental |
 | Save/load snapshots | Experimental |
 | Visual script editor | Preview |
-| Plaintext XP3-backed asset loading | Preview |
-| XP3 viewer and KRKR package scan | Preview |
-| KRKR package scan mode | Limited preview |
 
-XP3 support is limited to plaintext archive reading in the public repository. Applications may provide external XP3 plugin modules for packages they are authorized to process, but game-specific processors are intentionally kept out of this repository. See `docs/xp3-support.md` and `LEGAL.md`.
+Migration utilities are preview-only: plaintext XP3 asset reading, the XP3 Viewer, and the limited KRKR package scan mode are for authorized asset inspection and migration experiments. They are not the project’s main authoring path. Applications may provide external XP3 plugin modules for packages they are authorized to process, but game-specific processors are intentionally kept out of this repository. See `docs/xp3-support.md`, `docs/xp3-plugin-interface.md`, `LEGAL.md`, and `SECURITY.md`.
 
 ## Commands
 

@@ -19,16 +19,22 @@ Project Suzu 脚本使用 `.szs` 文件。默认语法是 classic 行式 Project
 
 如果省略 `syntax`，Project Suzu 使用 `classic`。所有风格都会编译到同一套命令模型，因此运行时行为、存档、打包和资源加载保持一致。
 
+## 如何选择语法
+
+新手写剧情脚本优先使用 `syntax=indent`。它对作者更易读，能自然表达选择项和条件分支，也是推荐 starter 工作流采用的语法。
+
+维护旧脚本、编写底层示例或需要最稳定兼容面时使用 `syntax=classic`。`syntax=braces` 和 `syntax=markup` 定位为工具生成、导入导出和结构化编辑器的前端。编辑器 MVP 阶段优先完整支持 `indent` 和 `classic` 的编辑；`braces` 和 `markup` 可以先作为只读、导入或导出格式存在，之后再补齐完整表单编辑。
+
 ## 语法风格
 
 每个文件建议只使用一种风格。混用只适合小型 escape hatch，例如在 indent 脚本中临时写 classic `@custom` 命令来实验自定义扩展命令。
 
 | 风格 | 适合场景 | 说明 |
 | --- | --- | --- |
+| `indent` | 推荐新项目 | 类 Python block；缩进结束 `if` block。 |
 | `classic` | 稳定示例和兼容性 | Project Suzu 原始行式语法。 |
-| `indent` | 手写剧情脚本 | 类 Python block；缩进结束 `if` block。 |
-| `braces` | 程序员和生成器 | 类 C call statement 和 brace block。 |
-| `markup` | 编辑器导出和结构化工具 | 带 quoted attribute 的 tag 语法。 |
+| `braces` | 程序员和生成器 | 类 C call statement 和 brace block；作者编辑仍是实验定位。 |
+| `markup` | 编辑器导出和结构化工具 | 带 quoted attribute 的 tag 语法；作者编辑仍是实验定位。 |
 
 Classic 风格是原始 `.szs` 形式：
 

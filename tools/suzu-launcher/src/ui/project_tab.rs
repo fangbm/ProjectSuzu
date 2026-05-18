@@ -46,6 +46,9 @@ impl LauncherApp {
                     Some(path) => format!("Config: {}", path.display()),
                     None => "Config: convention defaults".to_owned(),
                 });
+                for warning in report.warnings() {
+                    ui.colored_label(egui::Color32::YELLOW, format!("Warning: {warning}"));
+                }
             } else if project.root.join("scenario/main.szs").exists()
                 || project.root.join("script/main.szs").exists()
             {

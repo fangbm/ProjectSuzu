@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Refined the author-first project narrative, `syntax=indent` guidance, release gate checklist, and external plugin safety notes for the v0.2.x rectification pass.
+- Improved `suzu-player --check` and launcher project checks with config, entry, empty-asset, override, and script-compile diagnostics.
+- Expanded the short VN demo script and README, and added equivalent syntax-front-end regression coverage.
+
 ## 0.2.1 - 2026-05-18
 
 - Improved `suzu-player` no-argument startup so double-clicking the player from a release package opens the bundled `templates/starter-vn` starter project when the current folder is not a Suzu project.

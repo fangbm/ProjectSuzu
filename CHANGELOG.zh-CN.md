@@ -2,6 +2,10 @@
 
 ## 未发布
 
+- 按 v0.2.x 整改方向收敛作者优先叙事、`syntax=indent` 推荐、发布门禁和外部 plugin 安全说明。
+- 改进 `suzu-player --check` 和 launcher 工程检查，补充 config、entry、空素材、entry override 和脚本编译诊断。
+- 扩展 short VN demo 剧本与 README，并增加多语法前端等价回归测试。
+
 ## 0.2.1 - 2026-05-18
 
 - 改进 `suzu-player` 无参数启动：从 release 包双击启动且当前目录不是 Suzu 工程时，会自动打开内置的 `templates/starter-vn` starter project。

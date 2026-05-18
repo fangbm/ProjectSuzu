@@ -9,6 +9,8 @@
 The train is late, but the demo is right on time.[l][r]
 # Ren
 Then let us prove the whole route works before the next release.
+# Suzu
+The goal is modest: one opening, two decisions, a saved midpoint, and a clean ending an author can inspect.
 @choice "Help Suzu organize the notes" goto=help_suzu
 @choice "Inspect the platform gate first" goto=inspect_gate
 
@@ -18,35 +20,75 @@ Then let us prove the whole route works before the next release.
 @voice file="voice/suzu_002.ogg"
 # Suzu
 Good. The notes say we need a title screen, choices, variables, saves, and packaging.
-@jump goto=after_choice
+# Ren
+We will keep the script small, but every line should teach an author where to put the next piece.
+@jump goto=after_first_choice
 
 *inspect_gate
 @set name=suzu_trust value=35
 @char name="ren" face="neutral" x=140 y=56 width=320 height=640 layer=9 flip=true
 # Ren
 The gate is open. The only missing piece is a tiny story that uses the framework honestly.
+# Suzu
+Then the demo should speak like a project, not like a benchmark report.
 
-*after_choice
+*after_first_choice
 @bg file="bg_library_afternoon" method=fade_color color=#101828 time=900
 @anim target="suzu" type=move_to x=540 y=36 duration=600
+@wait time=250
 @if cond=suzu_trust>=50
 # Suzu
 Because you helped, the route unlocks the easier explanation first.
+# Ren
+The variable changed the scene without splitting the whole story in half.
 @else
 # Suzu
 Because you checked the gate, the route keeps the technical explanation short.
+# Ren
+That is useful too. A demo should be honest about what is still preview-quality.
 @endif
 @autosave
 # Ren
 Autosave has captured this scene. Slot 0 is also seeded from startup, so the load menu has something to show.
+# Suzu
+Now choose what this sample should polish next.
+@choice "Write the tutorial note" goto=write_tutorial_note
+@choice "Check the release package list" goto=check_package_list
+
+*write_tutorial_note
+@set name=suzu_trust value=75
+@voice file="voice/suzu_003.ogg"
+# Suzu
+Tutorial note: start from starter-vn, edit scenario/main.szs, run suzu-player, then package assets when the scene is stable.
+# Ren
+That is the author path we want the repository to teach first.
+@jump goto=merge_plan
+
+*check_package_list
+@set name=suzu_trust value=45
+# Ren
+Package note: the release archive should carry the player, editor, compiler, packer, starter template, demo, and offline docs.
+# Suzu
+And each release should verify assets after the workflow, not just trust that a green run uploaded everything.
+
+*merge_plan
 @bg file="bg_platform_evening" method=crossfade time=700
 @fx type=flash color=#FFFFFF duration=180
 @wait time=250
+@if cond=suzu_trust>=50
 # Suzu
+The tutorial route is marked as ready for a fuller art pass.
+@else
+# Suzu
+The release route is marked as ready for stricter packaging checks.
+@endif
+# Ren
 History, auto mode, and the system menu are runtime features. Try cancel, save, load, and auto from here.[l][r]
 @stopbgm fadeout=800
 @anim target="suzu" type=fade opacity=0 duration=500
 @wait time=500
 @hidechar name="suzu"
+# Suzu
+When the real assets arrive, this same script should still compile, run, and pack.
 # Ren
-Short demo complete. Next step: replace fallback colors with open-licensed art and audio.
+Short demo complete. Next step: replace fallback colors with redistributable art and audio, then ship the sample as a teaching project.
