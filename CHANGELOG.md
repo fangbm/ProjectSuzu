@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.2.1 - 2026-05-18
+
+- Improved `suzu-player` no-argument startup so double-clicking the player from a release package opens the bundled `templates/krkr-like-vn` starter project when the current folder is not a Suzu project.
+- Kept explicit project-root and `--entry` launches strict, so invalid user-provided project paths still report real loading errors.
+- Added clearer no-project error guidance and documented the bundled-template fallback in the project layout guide.
+
 ## 0.2.0 - 2026-05-17
 
 - Split the desktop platform layer, script compiler, and app runtime tests into focused modules for the v0.2.0 convergence pass.

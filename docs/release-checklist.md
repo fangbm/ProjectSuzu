@@ -35,8 +35,8 @@ Use this checklist before creating a `v*` tag or running a manual GitHub release
 ## Tag Release
 
 ```powershell
-git tag v0.2.0
-git push origin v0.2.0
+git tag v0.2.1
+git push origin v0.2.1
 ```
 
 The GitHub release workflow builds platform artifacts and publishes archives for tags matching `v*`.

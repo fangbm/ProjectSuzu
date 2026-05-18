@@ -3636,7 +3636,7 @@ dependencies = [
 
 [[package]]
 name = "suzu-app"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "image 0.25.6",
@@ -3655,7 +3655,7 @@ dependencies = [
 
 [[package]]
 name = "suzu-asset"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "flate2",
@@ -3666,14 +3666,14 @@ dependencies = [
 
 [[package]]
 name = "suzu-audio"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "serde",
 ]
 
 [[package]]
 name = "suzu-bench"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "suzu-app",
@@ -3681,7 +3681,7 @@ dependencies = [
 
 [[package]]
 name = "suzu-branching-story"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "suzu-app",
@@ -3692,7 +3692,7 @@ dependencies = [
 
 [[package]]
 name = "suzu-compiler"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "serde_json",
@@ -3701,7 +3701,7 @@ dependencies = [
 
 [[package]]
 name = "suzu-core"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "serde",
  "thiserror 1.0.69",
@@ -3709,7 +3709,7 @@ dependencies = [
 
 [[package]]
 name = "suzu-editor"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "eframe",
@@ -3720,7 +3720,7 @@ dependencies = [
 
 [[package]]
 name = "suzu-editor-core"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "serde",
@@ -3731,7 +3731,7 @@ dependencies = [
 
 [[package]]
 name = "suzu-hello-world"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "suzu-app",
@@ -3742,7 +3742,7 @@ dependencies = [
 
 [[package]]
 name = "suzu-input"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -3751,7 +3751,7 @@ dependencies = [
 
 [[package]]
 name = "suzu-launcher"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "eframe",
@@ -3768,7 +3768,7 @@ dependencies = [
 
 [[package]]
 name = "suzu-packer"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "serde",
@@ -3777,7 +3777,7 @@ dependencies = [
 
 [[package]]
 name = "suzu-platform"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "bytemuck",
@@ -3791,7 +3791,7 @@ dependencies = [
 
 [[package]]
 name = "suzu-player"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "suzu-platform",
@@ -3802,7 +3802,7 @@ dependencies = [
 
 [[package]]
 name = "suzu-project"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "serde",
@@ -3816,7 +3816,7 @@ dependencies = [
 
 [[package]]
 name = "suzu-render"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "serde",
@@ -3825,7 +3825,7 @@ dependencies = [
 
 [[package]]
 name = "suzu-save"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "serde",
@@ -3839,7 +3839,7 @@ dependencies = [
 
 [[package]]
 name = "suzu-script"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "mlua",
  "serde",
@@ -3849,7 +3849,7 @@ dependencies = [
 
 [[package]]
 name = "suzu-short-vn-demo"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "suzu-app",
@@ -3861,7 +3861,7 @@ dependencies = [
 
 [[package]]
 name = "suzu-smoke-tests"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "suzu-app",
@@ -3873,7 +3873,7 @@ dependencies = [
 
 [[package]]
 name = "suzu-text"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "serde",
  "suzu-core",
@@ -3881,7 +3881,7 @@ dependencies = [
 
 [[package]]
 name = "suzu-ui-save-load-demo"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "suzu-app",
@@ -3893,7 +3893,7 @@ dependencies = [
 
 [[package]]
 name = "suzu-xp3-viewer"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "eframe",
