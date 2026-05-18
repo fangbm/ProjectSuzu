@@ -120,7 +120,7 @@ fn resolve_default_project_root(mut args: PlayerArgs) -> Result<PlayerArgs> {
     }
 
     bail!(
-        "no Project Suzu project was found in `{}`. Pass a project folder, or run from a folder containing `{}` and `{}`. Example: suzu-player templates\\krkr-like-vn",
+        "no Project Suzu project was found in `{}`. Pass a project folder, or run from a folder containing `{}` and `{}`. Example: suzu-player templates\\starter-vn",
         args.project_root.display(),
         PROJECT_CONFIG_FILE,
         DEFAULT_ENTRY
@@ -128,10 +128,10 @@ fn resolve_default_project_root(mut args: PlayerArgs) -> Result<PlayerArgs> {
 }
 
 fn find_bundled_template_project(root: &Path) -> Option<PathBuf> {
-    let mut candidates = vec![root.join("templates").join("krkr-like-vn")];
+    let mut candidates = vec![root.join("templates").join("starter-vn")];
     if let Ok(exe_path) = env::current_exe() {
         if let Some(exe_dir) = exe_path.parent() {
-            candidates.push(exe_dir.join("templates").join("krkr-like-vn"));
+            candidates.push(exe_dir.join("templates").join("starter-vn"));
         }
     }
 
@@ -151,9 +151,9 @@ fn print_usage() {
     println!();
     println!("examples:");
     println!("  suzu-player");
-    println!("  suzu-player templates\\krkr-like-vn");
-    println!("  suzu-player --check templates\\krkr-like-vn");
-    println!("  suzu-player templates\\krkr-like-vn --entry scenario\\chapter1.szs");
+    println!("  suzu-player templates\\starter-vn");
+    println!("  suzu-player --check templates\\starter-vn");
+    println!("  suzu-player templates\\starter-vn --entry scenario\\chapter1.szs");
 }
 
 #[cfg(test)]
@@ -199,7 +199,7 @@ mod tests {
     #[test]
     fn implicit_empty_root_uses_bundled_template_when_present() {
         let root = unique_temp_dir("implicit-template");
-        let template = root.join("templates").join("krkr-like-vn");
+        let template = root.join("templates").join("starter-vn");
         std::fs::create_dir_all(template.join("scenario")).unwrap();
         std::fs::write(
             template.join("scenario").join("main.szs"),
@@ -222,7 +222,7 @@ mod tests {
     #[test]
     fn explicit_empty_root_does_not_use_bundled_template() {
         let root = unique_temp_dir("explicit-root");
-        let template = root.join("templates").join("krkr-like-vn");
+        let template = root.join("templates").join("starter-vn");
         std::fs::create_dir_all(template.join("scenario")).unwrap();
         std::fs::write(
             template.join("scenario").join("main.szs"),

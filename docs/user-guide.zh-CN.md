@@ -15,8 +15,8 @@ cargo run -p suzu-hello-world
 不写 Rust，直接运行低门槛工程模板：
 
 ```powershell
-cargo run -p suzu-player -- templates\krkr-like-vn
-cargo run -p suzu-player -- --check templates\krkr-like-vn
+cargo run -p suzu-player -- templates\starter-vn
+cargo run -p suzu-player -- --check templates\starter-vn
 ```
 
 运行 Rust 集成模板：
@@ -126,7 +126,7 @@ app.register_xp3_file_with_options("data.xp3", module.xp3_options())?;
 - `examples/branching-story`：标题界面、选择项、标签和条件变量。
 - `examples/ui-save-load-demo`：标题界面、存档/读档、设置、历史和菜单流程。
 - `examples/short-vn-demo`：首个完整短篇 VN 切片，覆盖标题界面、选择、变量、自动存档、效果和打包。
-- `templates/krkr-like-vn`：面向脚本作者的标准无 Rust 工程布局。
+- `templates/starter-vn`：面向脚本作者的标准无 Rust 工程布局。
 - `examples/stress-scene`：benchmark 输入用脚本级压力场景。
 - `examples/web-browser-shell`：未来 Wasm bundle 的静态浏览器 canvas shell。
 

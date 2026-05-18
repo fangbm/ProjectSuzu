@@ -15,8 +15,8 @@ cargo run -p suzu-hello-world
 Run the low-friction project template without writing Rust:
 
 ```powershell
-cargo run -p suzu-player -- templates\krkr-like-vn
-cargo run -p suzu-player -- --check templates\krkr-like-vn
+cargo run -p suzu-player -- templates\starter-vn
+cargo run -p suzu-player -- --check templates\starter-vn
 ```
 
 Run the Rust integration template:
@@ -126,7 +126,7 @@ Set `GameConfig.title_screen.enabled = true` to start on a title menu instead of
 - `examples/branching-story`: title screen, choices, labels, and conditional variables.
 - `examples/ui-save-load-demo`: title screen, save/load, settings, history, and menu flows.
 - `examples/short-vn-demo`: first complete short VN slice covering title screen, choices, variables, autosave, effects, and packaging.
-- `templates/krkr-like-vn`: standard no-Rust project layout for script-first authors.
+- `templates/starter-vn`: standard no-Rust project layout for script-first authors.
 - `examples/stress-scene`: script-level stress scene for benchmark inputs.
 - `examples/web-browser-shell`: static browser canvas shell for future Wasm bundles.
 

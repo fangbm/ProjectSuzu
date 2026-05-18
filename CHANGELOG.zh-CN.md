@@ -4,7 +4,7 @@
 
 ## 0.2.1 - 2026-05-18
 
-- 改进 `suzu-player` 无参数启动：从 release 包双击启动且当前目录不是 Suzu 工程时，会自动打开内置的 `templates/krkr-like-vn` starter project。
+- 改进 `suzu-player` 无参数启动：从 release 包双击启动且当前目录不是 Suzu 工程时，会自动打开内置的 `templates/starter-vn` starter project。
 - 保持显式工程目录和 `--entry` 启动的严格行为，因此用户主动传入的错误工程路径仍会报告真实加载错误。
 - 增加更清楚的“未找到工程”提示，并在工程布局指南中记录内置模板 fallback 行为。
 
@@ -17,8 +17,8 @@
 - 为仓库文档、模板、示例和 release package 增加简体中文配套文档。
 - 改进内置标题界面，支持可配置背景纹理、本地化菜单文本、读档/设置子页和鼠标命中。
 - 修复桌面标题界面和系统菜单的鼠标交互，扩大对话框 next 提示区域，并让脚本结束后清空最后一句对白。
-- 增加通过 `game.suzu.toml`、`scenario/main.szs`、`suzu-project` 和零代码 `suzu-player` 启动的 KRKR 风格低门槛工程流程。
-- 增加 `templates/krkr-like-vn`、工程布局文档、launcher 的运行/检查/打开编辑器动作，以及 `bg`、`ch`、`voice` 等短脚本命令。
+- 增加通过 `game.suzu.toml`、`scenario/main.szs`、`suzu-project` 和零代码 `suzu-player` 启动的脚本优先低门槛工程流程。
+- 增加 `templates/starter-vn`、工程布局文档、launcher 的运行/检查/打开编辑器动作，以及 `bg`、`ch`、`voice` 等短脚本命令。
 
 ## 0.1.6 - 2026-05-15
 

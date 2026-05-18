@@ -21,7 +21,7 @@ jobs:
       - run: cargo doc --workspace --no-deps
       - run: cargo test -p suzu-script --features lua
       - run: cargo run -p suzu-launcher -- --check
-      - run: cargo run -p suzu-player -- --check templates/krkr-like-vn
+      - run: cargo run -p suzu-player -- --check templates/starter-vn
       - run: cargo run -p suzu-xp3-viewer -- --check
       - run: cargo run -p suzu-editor -- --check
       - shell: pwsh
@@ -132,7 +132,7 @@ jobs:
             Copy-Item $docFile "dist/$docFile"
           }
           Copy-Item templates/minimal-vn dist/templates/minimal-vn -Recurse
-          Copy-Item templates/krkr-like-vn dist/templates/krkr-like-vn -Recurse
+          Copy-Item templates/starter-vn dist/templates/starter-vn -Recurse
           foreach ($required in @(
             "THIRD_PARTY_LICENSES.md",
             "THIRD_PARTY_LICENSES.zh-CN.md",
@@ -158,8 +158,8 @@ jobs:
             "docs/api-stability.zh-CN.md",
             "templates/minimal-vn/README.md",
             "templates/minimal-vn/README.zh-CN.md",
-            "templates/krkr-like-vn/README.md",
-            "templates/krkr-like-vn/README.zh-CN.md"
+            "templates/starter-vn/README.md",
+            "templates/starter-vn/README.zh-CN.md"
           )) {
             if (-not (Test-Path "dist/$required")) {
               throw "Missing release package file: $required"

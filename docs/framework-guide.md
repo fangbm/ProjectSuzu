@@ -799,7 +799,7 @@ dist/project-suzu-desktop.zip
 - 核心 docs。
 - branding README 和 icon。
 - hello-world `.suzupack` 和 manifest。
-- `templates/krkr-like-vn` 和 `templates/minimal-vn`。
+- `templates/starter-vn` 和 `templates/minimal-vn`。
 
 GitHub Release 通过 `v*` tag 触发。创建 tag 前先跑完整 gate。
 

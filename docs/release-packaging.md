@@ -10,7 +10,7 @@ Run:
 .\scripts\package-desktop.ps1
 ```
 
-The script builds the workspace, copies example binaries and desktop tools including `suzu-player`, `suzu-launcher`, `suzu-editor`, and `suzu-xp3-viewer`, includes user documentation plus `templates/krkr-like-vn` and `templates/minimal-vn`, packs hello-world and short-demo assets into `.suzupack`, writes JSON manifests, and creates `dist/project-suzu-desktop.zip`.
+The script builds the workspace, copies example binaries and desktop tools including `suzu-player`, `suzu-launcher`, `suzu-editor`, and `suzu-xp3-viewer`, includes user documentation plus `templates/starter-vn` and `templates/minimal-vn`, packs hello-world and short-demo assets into `.suzupack`, writes JSON manifests, and creates `dist/project-suzu-desktop.zip`.
 The package also includes the Project Suzu icon and branding notes, `CONTRIBUTING.md`, `SECURITY.md`, `LEGAL.md`, `LICENSE-MIT`, `LICENSE-APACHE`, `THIRD_PARTY_LICENSES.md`, and `CHANGELOG.md`.
 
 Check package inputs without building:
@@ -47,7 +47,7 @@ cargo test --workspace
 cargo doc --workspace --no-deps
 cargo test -p suzu-script --features lua
 cargo run -p suzu-launcher -- --check
-cargo run -p suzu-player -- --check templates\krkr-like-vn
+cargo run -p suzu-player -- --check templates\starter-vn
 cargo run -p suzu-xp3-viewer -- --check
 cargo run -p suzu-editor -- --check
 .\scripts\package-desktop.ps1 -Check

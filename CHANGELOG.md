@@ -4,7 +4,7 @@
 
 ## 0.2.1 - 2026-05-18
 
-- Improved `suzu-player` no-argument startup so double-clicking the player from a release package opens the bundled `templates/krkr-like-vn` starter project when the current folder is not a Suzu project.
+- Improved `suzu-player` no-argument startup so double-clicking the player from a release package opens the bundled `templates/starter-vn` starter project when the current folder is not a Suzu project.
 - Kept explicit project-root and `--entry` launches strict, so invalid user-provided project paths still report real loading errors.
 - Added clearer no-project error guidance and documented the bundled-template fallback in the project layout guide.
 
@@ -17,8 +17,8 @@
 - Added Simplified Chinese companion documentation across repository docs, templates, examples, and release packages.
 - Improved the built-in title screen with configurable background textures, localizable labels, load/settings subpages, and pointer hit-testing.
 - Fixed desktop pointer interactions for the built-in title screen and system menu, widened the dialogue next prompt, and made exhausted scripts clear the final message box.
-- Added low-friction, KRKR-like project loading through `game.suzu.toml`, `scenario/main.szs`, `suzu-project`, and the zero-code `suzu-player` launcher.
-- Added `templates/krkr-like-vn`, project layout documentation, launcher project run/check/editor actions, and short script command aliases such as `bg`, `ch`, and `voice`.
+- Added low-friction, script-first project loading through `game.suzu.toml`, `scenario/main.szs`, `suzu-project`, and the zero-code `suzu-player` launcher.
+- Added `templates/starter-vn`, project layout documentation, launcher project run/check/editor actions, and short script command aliases such as `bg`, `ch`, and `voice`.
 
 ## 0.1.6 - 2026-05-15
 

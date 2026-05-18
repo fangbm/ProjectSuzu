@@ -1,4 +1,4 @@
-title = "KRKR Like Suzu Project"
+title = "Project Suzu Starter"
 subtitle = "Script first, Rust optional"
 entry = "scenario/main.szs"
 
@@ -6,7 +6,7 @@ entry = "scenario/main.szs"
 enabled = true
 
 [window]
-title = "KRKR Like Suzu Project"
+title = "Project Suzu Starter"
 width = 1280
 height = 720
 resizable = true

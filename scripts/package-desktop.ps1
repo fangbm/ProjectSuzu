@@ -82,7 +82,7 @@ $binaries = @(
 Push-Location $repo
 try {
     if ($Check) {
-        foreach ($path in ($rootDocFiles + $brandingFiles + @("templates/minimal-vn", "templates/krkr-like-vn", "examples/short-vn-demo", $AssetRoot) + $docFiles)) {
+        foreach ($path in ($rootDocFiles + $brandingFiles + @("templates/minimal-vn", "templates/starter-vn", "examples/short-vn-demo", $AssetRoot) + $docFiles)) {
             if (-not (Test-Path $path)) {
                 throw "Missing package input: $path"
             }
@@ -125,7 +125,7 @@ try {
         Copy-Item $docFile (Join-Path $dist $docFile)
     }
     Copy-Item "templates/minimal-vn" (Join-Path $dist "templates/minimal-vn") -Recurse
-    Copy-Item "templates/krkr-like-vn" (Join-Path $dist "templates/krkr-like-vn") -Recurse
+    Copy-Item "templates/starter-vn" (Join-Path $dist "templates/starter-vn") -Recurse
 
     cargo run -p suzu-packer -- $AssetRoot --pack (Join-Path $dist "assets/hello-world.suzupack")
     cargo run -p suzu-packer -- $AssetRoot --output (Join-Path $dist "assets/hello-world-assets.json")

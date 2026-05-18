@@ -1,6 +1,6 @@
 # Project Layout
 
-Project Suzu now supports a KRKR-like project folder for authors who want to write scripts and place resources without creating a Rust binary.
+Project Suzu now supports a script-first project folder for authors who want to write scripts and place resources without creating a Rust binary.
 
 ## Standard Folder
 
@@ -52,7 +52,7 @@ Loose resources are registered from each configured asset root:
 - `assets/chara/suzu_normal.png` becomes `chara/suzu_normal`.
 - Texture files also receive a short file-stem alias, such as `school` or `suzu_normal`, for compact scripts.
 
-The path-based ID is best for larger projects because it avoids collisions. The short alias is meant for small projects and KRKR-style quick prototypes.
+The path-based ID is best for larger projects because it avoids collisions. The short alias is meant for small projects and script-first quick prototypes.
 
 ## Running And Checking
 
@@ -63,7 +63,7 @@ suzu-launcher --check --project-root my-game
 suzu-editor --check --project-root my-game
 ```
 
-When `suzu-player` starts without a project root and the current folder is not a Suzu project, it looks for the bundled `templates/krkr-like-vn` project beside the executable or under the current folder. This makes double-clicking `suzu-player` in a release package open the included starter project instead of failing on `.\scenario\main.szs`.
+When `suzu-player` starts without a project root and the current folder is not a Suzu project, it looks for the bundled `templates/starter-vn` project beside the executable or under the current folder. This makes double-clicking `suzu-player` in a release package open the included starter project instead of failing on `.\scenario\main.szs`.
 
 During development, prefer `syntax=indent` in new scripts:
 

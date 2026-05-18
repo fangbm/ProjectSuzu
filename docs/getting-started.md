@@ -66,10 +66,10 @@ cargo run -p suzu-short-vn-demo
 
 ## 4. 用零代码模板开始
 
-如果你只想写脚本和放资源，优先从 KRKR 风格模板开始：
+如果你只想写脚本和放资源，优先从脚本优先模板开始：
 
 ```text
-templates/krkr-like-vn/
+templates/starter-vn/
   game.suzu.toml
   assets/
   scenario/main.szs
@@ -78,13 +78,13 @@ templates/krkr-like-vn/
 直接运行：
 
 ```powershell
-cargo run -p suzu-player -- templates\krkr-like-vn
+cargo run -p suzu-player -- templates\starter-vn
 ```
 
 只做检查、不打开窗口：
 
 ```powershell
-cargo run -p suzu-player -- --check templates\krkr-like-vn
+cargo run -p suzu-player -- --check templates\starter-vn
 ```
 
 这个模板不需要 `src/main.rs`。`game.suzu.toml` 描述标题、入口脚本、窗口和资源目录；`scenario/main.szs` 是默认剧情入口；`assets/` 放图片、音频、字体等资源。目录规范见 `docs/project-layout.md`。
@@ -137,7 +137,7 @@ label label_continue:
 编译检查：
 
 ```powershell
-cargo run -p suzu-compiler -- templates\krkr-like-vn\scenario\main.szs
+cargo run -p suzu-compiler -- templates\starter-vn\scenario\main.szs
 ```
 
 常用命令、文本 markup、变量和条件语法见 `docs/scripting-reference.md`。
@@ -164,7 +164,7 @@ cargo run -p suzu-packer -- templates\minimal-vn --pack target\minimal-vn.suzupa
 
 ```powershell
 cargo run -p suzu-launcher -- --check
-cargo run -p suzu-player -- --check templates\krkr-like-vn
+cargo run -p suzu-player -- --check templates\starter-vn
 cargo run -p suzu-xp3-viewer -- --check
 cargo run -p suzu-editor -- --check
 ```
@@ -172,9 +172,9 @@ cargo run -p suzu-editor -- --check
 也可以指定工程或 XP3 文件：
 
 ```powershell
-cargo run -p suzu-launcher -- --check --project-root templates\krkr-like-vn
+cargo run -p suzu-launcher -- --check --project-root templates\starter-vn
 cargo run -p suzu-xp3-viewer -- --check --xp3 path\to\plain.xp3
-cargo run -p suzu-editor -- --check --project-root templates\krkr-like-vn
+cargo run -p suzu-editor -- --check --project-root templates\starter-vn
 ```
 
 外部 XP3 plugin 只适用于你拥有或被授权处理的资源，并且必须显式传入授权确认：
@@ -207,4 +207,4 @@ XP3 支持边界见 `docs/xp3-support.md`，外部处理器接口见 `docs/xp3-p
 - 读 `docs/framework-guide.md`，了解运行时 API、存档、标题界面、菜单和桌面平台层。
 - 读 `docs/scripting-reference.md`，补齐 `.szs` 脚本语法。
 - 读 `docs/api-stability.md`，确认哪些接口在 `0.1.x` 内会尽量保持兼容。
-- 从 `templates/krkr-like-vn` 复制一个项目，替换脚本和资源；需要 Rust 自定义入口时再参考 `templates/minimal-vn`。
+- 从 `templates/starter-vn` 复制一个项目，替换脚本和资源；需要 Rust 自定义入口时再参考 `templates/minimal-vn`。
